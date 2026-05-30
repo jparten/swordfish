@@ -41,6 +41,9 @@ from .weapons import (
 
 WORLD_LIMIT = 34.0
 PLAYER_SPEED = 7.0
+DODGE_SPEED = 20.0
+DODGE_DURATION = 0.22
+DODGE_COOLDOWN = 0.75
 ATTACK_RANGE = 2.6
 FISHING_RANGE = 4.5
 SHOP_RANGE = 3.0
@@ -502,6 +505,9 @@ class SwordfishGame(ShowBase):
         self.death_duration = 2.25
         self.is_death_sequence = False
         self.attack_cooldown = 0.0
+        self.dodge_time = 0.0
+        self.dodge_cooldown = 0.0
+        self.dodge_direction = Vec3(0, 1, 0)
         self.fish_count = 0
         self.enemies: List[SceneEnemy] = []
         self.chests: List[SceneChest] = []
@@ -557,6 +563,7 @@ class SwordfishGame(ShowBase):
         self.accept("e", self.handle_interact)
         self.accept("i", self.toggle_inspection)
         self.accept("space", self.attack)
+        self.accept("shift", self.dodge)
         self.accept("r", self.reset_arena)
         self.accept("m", self.spawn_monster)
         for index in range(1, len(FISHING_RODS) + 1):
@@ -2299,6 +2306,7 @@ class SwordfishGame(ShowBase):
     def _update(self, task):
         dt = min(globalClock.getDt(), 0.05)
         self.attack_cooldown = max(0.0, self.attack_cooldown - dt)
+        self.dodge_cooldown = max(0.0, self.dodge_cooldown - dt)
         self.catch_banner_timer = max(0.0, self.catch_banner_timer - dt)
         self.water_bump_cooldown = max(0.0, self.water_bump_cooldown - dt)
         if self.shop_open and self._distance_to_shop() > SHOP_RANGE + 0.45:
@@ -2320,24 +2328,31 @@ class SwordfishGame(ShowBase):
         if self.player_hp <= 0:
             return
 
-        move_x = 0.0
-        move_y = 0.0
-        if self.keys["w"]:
-            move_y += 1.0
-        if self.keys["s"]:
-            move_y -= 1.0
-        if self.keys["a"]:
-            move_x -= 1.0
-        if self.keys["d"]:
-            move_x += 1.0
+        if self.dodge_time > 0.0:
+            self.dodge_time = max(0.0, self.dodge_time - dt)
+            movement = Vec3(self.dodge_direction)
+            speed = DODGE_SPEED
+        else:
+            move_x = 0.0
+            move_y = 0.0
+            if self.keys["w"]:
+                move_y += 1.0
+            if self.keys["s"]:
+                move_y -= 1.0
+            if self.keys["a"]:
+                move_x -= 1.0
+            if self.keys["d"]:
+                move_x += 1.0
 
-        movement = Vec3(move_x, move_y, 0)
-        if movement.length() == 0:
-            return
+            movement = Vec3(move_x, move_y, 0)
+            if movement.length() == 0:
+                return
 
-        movement.normalize()
+            movement.normalize()
+            speed = PLAYER_SPEED
+
         old_pos = self.player.getPos()
-        new_pos = old_pos + movement * PLAYER_SPEED * dt
+        new_pos = old_pos + movement * speed * dt
         new_pos.setX(max(-WORLD_LIMIT, min(WORLD_LIMIT, new_pos.getX())))
         new_pos.setY(max(-WORLD_LIMIT, min(WORLD_LIMIT, new_pos.getY())))
         new_pos.setZ(0)
@@ -2364,6 +2379,18 @@ class SwordfishGame(ShowBase):
         if self.left_leg is None or self.right_leg is None or self.left_arm is None:
             return
         if self.is_death_sequence:
+            return
+
+        if self.dodge_time > 0.0:
+            progress = 1.0 - self.dodge_time / DODGE_DURATION
+            self.player.setP(-360.0 * progress)
+            self.player.setR(0)
+            self.player.setZ(math.sin(progress * math.pi) * 0.35)
+            self.left_leg.setP(52.0)
+            self.right_leg.setP(52.0)
+            self.left_arm.setHpr(44, -4, -12)
+            if self.right_arm is not None:
+                self.right_arm.setHpr(-44, -4, 12)
             return
 
         if self.is_player_moving and self.player_hp > 0:
@@ -2487,7 +2514,7 @@ class SwordfishGame(ShowBase):
             enemy_pos = enemy_pos + enemy.knockback_velocity * dt
             enemy_pos = self._clamp_enemy_position(enemy, enemy_pos)
             enemy.node.setPos(enemy_pos)
-            enemy.knockback_velocity = enemy.knockback_velocity * max(0.0, 1.0 - dt * 7.5)
+            enemy.knockback_velocity = enemy.knockback_velocity * max(0.0, 1.0 - dt * 5.5)
         else:
             enemy_pos = self._clamp_enemy_position(enemy, enemy_pos)
             enemy.node.setPos(enemy_pos)
@@ -2509,10 +2536,13 @@ class SwordfishGame(ShowBase):
 
         if distance < 1.05 and enemy.attack_cooldown == 0.0:
             enemy.attack_cooldown = 1.1
-            self.player_hp = max(0, self.player_hp - enemy.contact_damage)
-            self._log(f"{enemy.name} bites for {enemy.contact_damage}.")
-            if self.player_hp == 0:
-                self._start_death_sequence()
+            if self._player_is_invulnerable():
+                self._log(f"You roll under {enemy.name}'s bite.")
+            else:
+                self.player_hp = max(0, self.player_hp - enemy.contact_damage)
+                self._log(f"{enemy.name} bites for {enemy.contact_damage}.")
+                if self.player_hp == 0:
+                    self._start_death_sequence()
 
         self._animate_monster(enemy, dt, moving)
 
@@ -2565,10 +2595,13 @@ class SwordfishGame(ShowBase):
             if lunge_distance < 1.08 and not enemy.attack_landed:
                 enemy.attack_landed = True
                 enemy.attack_cooldown = 1.15
-                self.player_hp = max(0, self.player_hp - enemy.contact_damage)
-                self._log(f"{enemy.name} lunges for {enemy.contact_damage}.")
-                if self.player_hp == 0:
-                    self._start_death_sequence()
+                if self._player_is_invulnerable():
+                    self._log(f"You roll past {enemy.name}'s lunge.")
+                else:
+                    self.player_hp = max(0, self.player_hp - enemy.contact_damage)
+                    self._log(f"{enemy.name} lunges for {enemy.contact_damage}.")
+                    if self.player_hp == 0:
+                        self._start_death_sequence()
 
             if enemy.state_timer <= 0.0:
                 enemy.ai_state = "idle"
@@ -3101,6 +3134,39 @@ class SwordfishGame(ShowBase):
     def _lerp_vec3(self, start: Vec3, end: Vec3, amount: float) -> Vec3:
         return start + (end - start) * amount
 
+    def dodge(self):
+        if self.player_hp <= 0:
+            return
+        if self.fishing_state != "idle":
+            return
+        if self.dodge_time > 0.0 or self.dodge_cooldown > 0.0:
+            return
+
+        move_x = 0.0
+        move_y = 0.0
+        if self.keys["w"]:
+            move_y += 1.0
+        if self.keys["s"]:
+            move_y -= 1.0
+        if self.keys["a"]:
+            move_x -= 1.0
+        if self.keys["d"]:
+            move_x += 1.0
+
+        direction = Vec3(move_x, move_y, 0)
+        if direction.length() == 0:
+            heading = math.radians(self.player.getH())
+            direction = Vec3(-math.sin(heading), math.cos(heading), 0)
+        direction.normalize()
+
+        self.dodge_direction = direction
+        self.dodge_time = DODGE_DURATION
+        self.dodge_cooldown = DODGE_COOLDOWN
+        self._log("You dodge-roll.")
+
+    def _player_is_invulnerable(self) -> bool:
+        return self.dodge_time > 0.0
+
     def attack(self):
         if self.player_hp <= 0:
             self._log("Respawning soon...")
@@ -3163,7 +3229,7 @@ class SwordfishGame(ShowBase):
             target.node.removeNode()
             self.enemies.remove(target)
 
-        self.attack_cooldown = 0.55
+        self.attack_cooldown = 0.85
 
     def _apply_hit_feedback(self, target: SceneEnemy):
         direction = target.node.getPos() - self.player.getPos()
@@ -3174,7 +3240,7 @@ class SwordfishGame(ShowBase):
             direction.normalize()
 
         target.flash_time = 0.18
-        target.knockback_velocity = direction * 6.5
+        target.knockback_velocity = direction * 11.0
         target.node.setColorScale(1.5, 0.42, 0.42, 1)
 
         if target.kind == "rabbit":

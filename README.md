@@ -73,6 +73,7 @@ swordfish
 - `1`-`4`: choose a fishing rod when the shop menu is open
 - `I`: inspect the current weapon
 - `Space`: attack nearby enemies with the current weapon
+- `Shift`: dodge-roll a short burst in your movement (or facing) direction, with brief invulnerability and a short cooldown
 - `R`: manually reset the arena and restore health
 - `M`: spawn a monster for testing
 - `Esc`: quit
