@@ -96,6 +96,17 @@ class HitEffect:
     spin_rate: Vec3
 
 
+@dataclass
+class AnimatedDetail:
+    node: object
+    base_pos: Vec3
+    phase: float
+    speed: float
+    bob_amount: float
+    sway_amount: float
+    color: Tuple[float, float, float, float]
+
+
 def make_box(
     parent,
     name: str,
@@ -333,7 +344,7 @@ class SwordfishGame(ShowBase):
         self.win.requestProperties(props)
 
         self.disableMouse()
-        self.setBackgroundColor(0.08, 0.11, 0.14, 1)
+        self.setBackgroundColor(0.1, 0.14, 0.17, 1)
 
         self.rng = random.Random()
         self.keys = {"w": False, "a": False, "s": False, "d": False}
@@ -358,6 +369,7 @@ class SwordfishGame(ShowBase):
         self.fish_count = 0
         self.enemies: List[SceneEnemy] = []
         self.hit_effects: List[HitEffect] = []
+        self.animated_details: List[AnimatedDetail] = []
         self.log_lines: List[str] = []
         self.swing_time = 0.0
         self.swing_duration = 0.26
@@ -411,6 +423,7 @@ class SwordfishGame(ShowBase):
             (0.14, 0.29, 0.16, 1),
             (0, 0, -0.08),
         )
+        self._build_ground_layers()
         make_flat_blob(
             self.render,
             "muddy-lake-bank",
@@ -603,6 +616,7 @@ class SwordfishGame(ShowBase):
             tree.setH(self.rng.uniform(-18, 18))
 
         self._build_shop()
+        self._build_world_details()
 
         fence_color = (0.36, 0.27, 0.18, 1)
         make_box(self.render, "arena-back", (18, 0.35, 0.55), fence_color, (0, -14, 0.2))
@@ -615,6 +629,356 @@ class SwordfishGame(ShowBase):
             (17.2, 9.6, 0.06),
             (0.31, 0.25, 0.18, 1),
             (0, -8.9, 0.0),
+        )
+
+    def _build_ground_layers(self):
+        make_flat_blob(
+            self.render,
+            "warm-grass-center",
+            (0, -1.1, -0.045),
+            13.5,
+            8.0,
+            (0.18, 0.36, 0.18, 1),
+            points=24,
+            wobble=0.17,
+            rotation_degrees=-6,
+            seed=120,
+        )
+        make_flat_blob(
+            self.render,
+            "dark-forest-edge-west",
+            (-16.5, 4.5, -0.035),
+            5.0,
+            15.5,
+            (0.08, 0.2, 0.11, 1),
+            points=20,
+            wobble=0.24,
+            rotation_degrees=2,
+            seed=121,
+        )
+        make_flat_blob(
+            self.render,
+            "dark-forest-edge-east",
+            (16.3, 4.0, -0.034),
+            5.4,
+            15.5,
+            (0.08, 0.21, 0.12, 1),
+            points=20,
+            wobble=0.24,
+            rotation_degrees=-3,
+            seed=122,
+        )
+        make_flat_blob(
+            self.render,
+            "dock-footpath",
+            (0.0, 2.0, -0.015),
+            2.25,
+            5.2,
+            (0.35, 0.29, 0.16, 1),
+            points=18,
+            wobble=0.12,
+            rotation_degrees=2,
+            seed=123,
+        )
+        make_flat_blob(
+            self.render,
+            "shop-footpath",
+            (-6.0, 1.6, -0.012),
+            5.6,
+            1.05,
+            (0.34, 0.27, 0.15, 1),
+            points=18,
+            wobble=0.16,
+            rotation_degrees=-4,
+            seed=124,
+        )
+        make_flat_blob(
+            self.render,
+            "arena-approach-path",
+            (0.0, -3.05, -0.01),
+            3.7,
+            1.35,
+            (0.33, 0.25, 0.14, 1),
+            points=18,
+            wobble=0.13,
+            rotation_degrees=0,
+            seed=125,
+        )
+    def _build_world_details(self):
+        rng = random.Random(260530)
+
+        for index, (x, y, heading) in enumerate(
+            (
+                (-1.25, 3.0, 0),
+                (0.0, 3.0, 0),
+                (1.25, 3.0, 0),
+                (-1.25, 4.15, 0),
+                (0.0, 4.15, 0),
+                (1.25, 4.15, 0),
+                (-1.25, 5.3, 0),
+                (0.0, 5.3, 0),
+                (1.25, 5.3, 0),
+                (-1.25, 6.45, 0),
+                (0.0, 6.45, 0),
+                (1.25, 6.45, 0),
+            )
+        ):
+            make_box(
+                self.render,
+                f"dock-plank-line-{index}",
+                (0.08, 0.95, 0.04),
+                (0.24, 0.13, 0.06, 1),
+                (x, y, 0.16),
+                (0, 0, heading),
+            )
+
+        for index, x in enumerate((-1.72, 1.72)):
+            for y in (3.0, 6.55):
+                make_box(
+                    self.render,
+                    f"dock-post-{index}-{y}",
+                    (0.18, 0.18, 1.0),
+                    (0.2, 0.11, 0.05, 1),
+                    (x, y, 0.55),
+                )
+        make_box(
+            self.render,
+            "dock-rope-left",
+            (0.07, 3.7, 0.07),
+            (0.62, 0.47, 0.27, 1),
+            (-1.72, 4.78, 0.93),
+        )
+        make_box(
+            self.render,
+            "dock-rope-right",
+            (0.07, 3.7, 0.07),
+            (0.62, 0.47, 0.27, 1),
+            (1.72, 4.78, 0.93),
+        )
+
+        for index, (x, y) in enumerate(((-1.85, 6.7), (1.85, 6.7), (-10.9, 0.0))):
+            lantern = self.render.attachNewNode(f"lantern-{index}")
+            lantern.setPos(x, y, 0)
+            make_box(lantern, "lantern-post", (0.08, 0.08, 1.4), (0.16, 0.08, 0.04, 1), (0, 0, 0.7))
+            make_box(lantern, "lantern-arm", (0.48, 0.06, 0.06), (0.16, 0.08, 0.04, 1), (0.2, 0, 1.3))
+            glow = make_box(lantern, "lantern-glow", (0.34, 0.34, 0.34), (1.0, 0.72, 0.25, 0.38), (0.48, 0, 1.08))
+            make_box(lantern, "lantern-core", (0.16, 0.16, 0.22), (1.0, 0.54, 0.12, 0.82), (0.48, 0, 1.08))
+            self._add_animated_detail(glow, bob_amount=0.02, sway_amount=0.0, speed=2.8, phase=index)
+
+        for index, (x, y, length, heading) in enumerate(
+            (
+                (-5.8, 8.4, 1.2, -8),
+                (-1.8, 11.0, 1.7, 12),
+                (2.9, 8.8, 1.35, 4),
+                (6.2, 11.2, 1.05, -18),
+                (-3.6, 14.0, 1.25, 18),
+                (3.7, 14.5, 1.4, -10),
+            )
+        ):
+            shimmer = make_box(
+                self.render,
+                f"lake-shimmer-{index}",
+                (length, 0.055, 0.025),
+                (0.78, 0.95, 1.0, 0.42),
+                (x, y, 0.14 + index * 0.006),
+                (0, 0, heading),
+            )
+            self._add_animated_detail(
+                shimmer,
+                bob_amount=0.015,
+                sway_amount=5.0,
+                speed=1.4 + index * 0.22,
+                phase=index * 0.7,
+                color=(0.78, 0.95, 1.0, 0.42),
+            )
+
+        lily_colors = (
+            (0.12, 0.42, 0.22, 1),
+            (0.16, 0.5, 0.25, 1),
+            (0.1, 0.34, 0.2, 1),
+        )
+        for index, (x, y, sx, sy, heading) in enumerate(
+            (
+                (-7.2, 8.0, 0.52, 0.36, -12),
+                (-5.8, 11.3, 0.42, 0.32, 18),
+                (-1.4, 13.3, 0.55, 0.38, 8),
+                (3.5, 12.2, 0.46, 0.34, -22),
+                (6.5, 9.0, 0.5, 0.35, 14),
+                (8.3, 11.8, 0.38, 0.28, -8),
+            )
+        ):
+            pad = make_flat_blob(
+                self.render,
+                f"lily-pad-{index}",
+                (x, y, 0.16 + index * 0.004),
+                sx,
+                sy,
+                lily_colors[index % len(lily_colors)],
+                points=13,
+                wobble=0.2,
+                rotation_degrees=heading,
+                seed=520 + index,
+            )
+            self._add_animated_detail(
+                pad,
+                bob_amount=0.012,
+                sway_amount=2.5,
+                speed=1.0 + index * 0.14,
+                phase=index * 0.5,
+            )
+            if index in (1, 4):
+                flower = make_box(
+                    self.render,
+                    f"lily-flower-{index}",
+                    (0.16, 0.16, 0.08),
+                    (0.95, 0.72, 0.92, 1),
+                    (x + 0.08, y - 0.04, 0.2 + index * 0.004),
+                    (0, 0, heading),
+                )
+                self._add_animated_detail(
+                    flower,
+                    bob_amount=0.012,
+                    sway_amount=2.5,
+                    speed=1.0 + index * 0.14,
+                    phase=index * 0.5,
+                )
+
+        for index in range(14):
+            x = rng.uniform(-8.0, 8.0)
+            y = rng.uniform(7.2, 14.8)
+            petal = make_box(
+                self.render,
+                f"lake-petal-{index}",
+                (0.16, 0.05, 0.025),
+                rng.choice(((0.9, 0.72, 0.86, 0.72), (0.88, 0.92, 0.72, 0.68), (0.75, 0.86, 1.0, 0.58))),
+                (x, y, 0.19 + index * 0.002),
+                (0, 0, rng.uniform(0, 360)),
+            )
+            self._add_animated_detail(
+                petal,
+                bob_amount=rng.uniform(0.006, 0.018),
+                sway_amount=rng.uniform(2.0, 5.5),
+                speed=rng.uniform(0.7, 1.4),
+                phase=rng.uniform(0, math.pi * 2.0),
+                color=(1, 1, 1, 0.7),
+            )
+
+        for index in range(44):
+            angle = rng.uniform(0, math.pi * 2.0)
+            radius_x = rng.uniform(8.4, 13.8)
+            radius_y = rng.uniform(4.3, 7.7)
+            x = math.cos(angle) * radius_x + rng.uniform(-0.4, 0.4)
+            y = 9.7 + math.sin(angle) * radius_y + rng.uniform(-0.4, 0.4)
+            if -1.9 <= x <= 1.9 and 2.6 <= y <= 7.0:
+                continue
+            height = rng.uniform(0.22, 0.55)
+            color = rng.choice(
+                (
+                    (0.12, 0.38, 0.14, 1),
+                    (0.16, 0.48, 0.18, 1),
+                    (0.2, 0.36, 0.12, 1),
+                )
+            )
+            make_box(
+                self.render,
+                f"shore-grass-{index}",
+                (0.055, 0.08, height),
+                color,
+                (x, y, height / 2),
+                (0, rng.uniform(-16, 16), rng.uniform(0, 360)),
+            )
+
+        flower_colors = (
+            (0.86, 0.28, 0.42, 1),
+            (0.95, 0.84, 0.3, 1),
+            (0.56, 0.68, 1.0, 1),
+            (0.95, 0.62, 0.92, 1),
+        )
+        for index in range(22):
+            x = rng.uniform(-14.5, 14.5)
+            y = rng.choice((rng.uniform(-2.7, 2.1), rng.uniform(13.8, 17.0)))
+            make_box(
+                self.render,
+                f"wildflower-stem-{index}",
+                (0.035, 0.035, 0.22),
+                (0.14, 0.42, 0.12, 1),
+                (x, y, 0.12),
+            )
+            make_box(
+                self.render,
+                f"wildflower-head-{index}",
+                (0.13, 0.13, 0.08),
+                rng.choice(flower_colors),
+                (x, y, 0.26),
+                (0, 0, rng.uniform(0, 360)),
+            )
+
+        for index, (x, y, h) in enumerate(
+            (
+                (-4.8, 2.15, -16),
+                (-3.9, 1.62, 14),
+                (5.2, 2.0, 20),
+                (6.1, 1.5, -10),
+                (-7.8, 5.0, 32),
+                (7.6, 5.15, -28),
+            )
+        ):
+            make_box(self.render, f"old-relic-blade-{index}", (0.14, 0.72, 0.08), (0.45, 0.48, 0.47, 1), (x, y, 0.16), (0, 0, h))
+            make_box(self.render, f"old-relic-hilt-{index}", (0.38, 0.08, 0.08), (0.35, 0.22, 0.1, 1), (x, y - 0.3, 0.17), (0, 0, h))
+
+        for index, (x, y, scale) in enumerate(((-12.5, -0.7, 1.0), (-11.7, -1.35, 0.75), (11.7, 0.4, 0.9))):
+            make_box(self.render, f"mushroom-stem-{index}", (0.12 * scale, 0.12 * scale, 0.22 * scale), (0.78, 0.7, 0.56, 1), (x, y, 0.12 * scale))
+            make_box(self.render, f"mushroom-cap-{index}", (0.36 * scale, 0.3 * scale, 0.13 * scale), (0.74, 0.12, 0.16, 1), (x, y, 0.28 * scale))
+            make_box(self.render, f"mushroom-dot-{index}", (0.08 * scale, 0.06 * scale, 0.035 * scale), (0.96, 0.86, 0.72, 1), (x + 0.05 * scale, y - 0.02 * scale, 0.36 * scale))
+
+        for index, (x, y) in enumerate(((-7.4, -4.45), (-5.8, -4.45), (5.8, -4.45), (7.4, -4.45))):
+            flag = self.render.attachNewNode(f"arena-flag-{index}")
+            flag.setPos(x, y, 0)
+            make_box(flag, "flag-pole", (0.07, 0.07, 1.15), (0.17, 0.1, 0.05, 1), (0, 0, 0.55))
+            cloth = make_box(flag, "flag-cloth", (0.48, 0.08, 0.34), (0.68, 0.08, 0.1, 1), (0.24, 0, 0.95), (0, 0, 4))
+            self._add_animated_detail(cloth, bob_amount=0.0, sway_amount=6.0, speed=2.2, phase=index * 0.8)
+
+        for index, (x, y) in enumerate(((-6.8, -12.6), (6.8, -12.3))):
+            make_box(self.render, f"arena-dummy-post-{index}", (0.16, 0.16, 1.1), (0.25, 0.13, 0.06, 1), (x, y, 0.55))
+            make_box(self.render, f"arena-dummy-body-{index}", (0.7, 0.28, 0.55), (0.55, 0.42, 0.22, 1), (x, y, 0.92))
+            make_box(self.render, f"arena-dummy-mark-{index}", (0.38, 0.04, 0.06), (0.75, 0.12, 0.08, 1), (x, y - 0.17, 0.96))
+
+        for index in range(9):
+            firefly = self.render.attachNewNode(f"firefly-{index}")
+            x = rng.uniform(-8.8, 8.8)
+            y = rng.uniform(6.4, 14.2)
+            z = rng.uniform(0.72, 1.35)
+            firefly.setPos(x, y, z)
+            glow = make_box(firefly, "firefly-glow", (0.13, 0.13, 0.13), (1.0, 0.92, 0.32, 0.58), (0, 0, 0))
+            self._add_animated_detail(
+                firefly,
+                bob_amount=rng.uniform(0.08, 0.18),
+                sway_amount=rng.uniform(4.0, 9.0),
+                speed=rng.uniform(1.1, 2.1),
+                phase=rng.uniform(0, math.pi * 2.0),
+                color=(1.0, 0.92, 0.32, 0.58),
+            )
+            self._add_animated_detail(glow, bob_amount=0.0, sway_amount=0.0, speed=3.5, phase=index)
+
+    def _add_animated_detail(
+        self,
+        node,
+        bob_amount: float,
+        sway_amount: float,
+        speed: float,
+        phase: float,
+        color: Tuple[float, float, float, float] = (1, 1, 1, 1),
+    ):
+        self.animated_details.append(
+            AnimatedDetail(
+                node=node,
+                base_pos=Vec3(node.getPos()),
+                phase=phase,
+                speed=speed,
+                bob_amount=bob_amount,
+                sway_amount=sway_amount,
+                color=color,
+            )
         )
 
     def _build_shop(self):
@@ -1127,16 +1491,42 @@ class SwordfishGame(ShowBase):
 
     def _build_lights(self):
         ambient = AmbientLight("soft-ambient")
-        ambient.setColor((0.62, 0.64, 0.68, 1))
+        ambient.setColor((0.58, 0.62, 0.66, 1))
         self.render.setLight(self.render.attachNewNode(ambient))
 
         sun = DirectionalLight("low-sun")
-        sun.setColor((0.84, 0.79, 0.68, 1))
+        sun.setColor((0.96, 0.86, 0.65, 1))
         sun_path = self.render.attachNewNode(sun)
         sun_path.setHpr(-35, -55, 0)
         self.render.setLight(sun_path)
 
+        fill = DirectionalLight("cool-fill")
+        fill.setColor((0.24, 0.34, 0.46, 1))
+        fill_path = self.render.attachNewNode(fill)
+        fill_path.setHpr(130, -28, 0)
+        self.render.setLight(fill_path)
+
     def _build_ui(self):
+        self.status_frame = DirectFrame(
+            frameColor=(0.025, 0.035, 0.032, 0.58),
+            frameSize=(-1.36, -0.14, 0.67, 0.98),
+            pos=(0, 0, 0),
+        )
+        self.weapon_frame = DirectFrame(
+            frameColor=(0.025, 0.04, 0.05, 0.54),
+            frameSize=(-1.36, -0.08, 0.47, 0.72),
+            pos=(0, 0, 0),
+        )
+        self.prompt_frame = DirectFrame(
+            frameColor=(0.04, 0.035, 0.025, 0.58),
+            frameSize=(-0.72, 0.72, -0.92, -0.8),
+            pos=(0, 0, 0),
+        )
+        self.log_frame = DirectFrame(
+            frameColor=(0.025, 0.025, 0.028, 0.48),
+            frameSize=(-1.36, -0.04, -0.92, -0.51),
+            pos=(0, 0, 0),
+        )
         self.status_text = OnscreenText(
             text="",
             pos=(-1.32, 0.92),
@@ -1217,6 +1607,7 @@ class SwordfishGame(ShowBase):
         self.water_bump_cooldown = max(0.0, self.water_bump_cooldown - dt)
         self._move_player(dt)
         self._update_fishing(dt)
+        self._update_world_details()
         self._update_enemies(dt)
         self._update_hit_effects(dt)
         self._update_swing(dt)
@@ -1266,6 +1657,18 @@ class SwordfishGame(ShowBase):
 
         heading = math.degrees(math.atan2(-movement.getX(), movement.getY()))
         self.player.setH(heading)
+
+    def _update_world_details(self):
+        for detail in self.animated_details:
+            wave = math.sin(self.fishing_phase * detail.speed + detail.phase)
+            pos = Vec3(detail.base_pos)
+            pos.setZ(pos.getZ() + wave * detail.bob_amount)
+            detail.node.setPos(pos)
+            if detail.sway_amount:
+                detail.node.setH(wave * detail.sway_amount)
+            if detail.color[3] < 1.0:
+                pulse = 0.68 + 0.32 * (0.5 + 0.5 * wave)
+                detail.node.setColorScale(1, 1, 1, pulse)
 
     def _is_water_position(self, pos: Vec3) -> bool:
         x = pos.getX()
