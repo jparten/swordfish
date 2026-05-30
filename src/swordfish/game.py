@@ -1038,6 +1038,13 @@ class SwordfishGame(ShowBase):
         self.player = self.render.attachNewNode("player")
         make_box(
             self.player,
+            "player-ground-shadow",
+            (0.82, 0.52, 0.035),
+            (0.02, 0.025, 0.02, 0.28),
+            (0, 0.06, 0.03),
+        )
+        make_box(
+            self.player,
             "player-tunic",
             (0.72, 0.5, 0.95),
             (0.12, 0.36, 0.45, 1),
@@ -2384,6 +2391,7 @@ class SwordfishGame(ShowBase):
 
     def _make_rabbit(self, number: int, pos: Vec3) -> SceneEnemy:
         root = self.render.attachNewNode(f"rabbit-{number}")
+        make_box(root, "rabbit-shadow", (0.78, 0.42, 0.03), (0.02, 0.025, 0.02, 0.25), (0, 0.04, 0.035))
         make_box(root, "rabbit-body", (0.8, 0.5, 0.35), (0.96, 0.96, 0.92, 1), (0, 0, 0.28))
         make_box(root, "rabbit-head", (0.42, 0.42, 0.38), (1.0, 1.0, 0.98, 1), (0, 0.38, 0.52))
         make_box(root, "rabbit-ear-left", (0.12, 0.12, 0.62), (1.0, 0.93, 0.93, 1), (-0.14, 0.42, 0.92))
@@ -2403,6 +2411,7 @@ class SwordfishGame(ShowBase):
 
     def _make_monster(self, pos: Vec3) -> SceneEnemy:
         root = self.render.attachNewNode("mire-grub")
+        make_box(root, "monster-shadow", (1.85, 1.25, 0.035), (0.02, 0.025, 0.02, 0.32), (0, 0.25, 0.035))
         make_box(root, "monster-body", (1.7, 1.2, 0.9), (0.22, 0.38, 0.24, 1), (0, 0, 0.45))
         make_box(root, "monster-head", (1.0, 0.8, 0.75), (0.26, 0.46, 0.27, 1), (0, 0.78, 0.62))
         make_box(root, "monster-eye-left", (0.14, 0.08, 0.14), (0.9, 0.9, 0.3, 1), (-0.22, 1.18, 0.72))
