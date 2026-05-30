@@ -12,6 +12,8 @@ from .weapons import Weapon
 GOLD_REWARDS = {
     "rabbit": 5,
     "monster": 15,
+    "bird": 8,
+    "boar": 20,
 }
 
 
