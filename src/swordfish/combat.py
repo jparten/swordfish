@@ -14,7 +14,13 @@ GOLD_REWARDS = {
     "monster": 15,
     "bird": 8,
     "boar": 20,
+    "boss": 50,
 }
+
+
+def apply_damage(raw: int, armor: int) -> int:
+    """Apply flat armor reduction to incoming damage (minimum 1)."""
+    return max(1, raw - armor)
 
 
 @dataclass(frozen=True)

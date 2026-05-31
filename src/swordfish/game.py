@@ -28,10 +28,12 @@ from panda3d.core import (
     WindowProperties,
 )
 
-from .combat import EnemyState, gold_reward_for_enemy, resolve_attack
+from .combat import EnemyState, apply_damage, gold_reward_for_enemy, resolve_attack
 from .weapons import (
+    ARMOR_TIERS,
     FISHING_RODS,
     Weapon,
+    armor_tier_for_index,
     discover_traits,
     fishing_rod_for_tier,
     generate_weapon,
@@ -58,6 +60,10 @@ SHOP_RANGE = 3.0
 CHEST_RANGE = 2.5
 CHEST_GUARD_RADIUS = 4.8
 SHOP_SPOT = Vec3(-10.4, 1.7, 0)
+FORGE_SPOT = Vec3(6.5, 4.5, 0)
+FORGE_RANGE = 3.0
+BOSS_ARENA_CENTER = Vec3(-38, 38, 0)
+BOSS_ARENA_RADIUS = 7.0
 ARENA_MIN_X = -8.2
 ARENA_MAX_X = 8.2
 ARENA_MIN_Y = -13.2
@@ -120,6 +126,7 @@ class SceneChest:
     pos: Vec3
     reward_gold: int
     guard_kind: str
+    guard_bounds: Optional[Tuple[float, float, float, float]] = None
     opened: bool = False
 
 
@@ -490,7 +497,8 @@ class SwordfishGame(ShowBase):
 
         props = WindowProperties()
         props.setTitle("Swordfish - Panda3D Vertical Slice")
-        self.win.requestProperties(props)
+        if self.win is not None:
+            self.win.requestProperties(props)
 
         self.disableMouse()
         self.setBackgroundColor(0.035, 0.08, 0.055, 1)
@@ -558,6 +566,13 @@ class SwordfishGame(ShowBase):
         self.shop_frame = None
         self.shop_title = None
         self.shop_body = None
+        self.forge_open = False
+        self.forge_frame = None
+        self.forge_title = None
+        self.forge_body = None
+        self.player_armor_value = 0
+        self.player_armor_tier = -1
+        self.boss_alive = False
 
         self._bind_controls()
         self._build_world()
@@ -583,8 +598,8 @@ class SwordfishGame(ShowBase):
         self.accept("shift", self.dodge)
         self.accept("r", self.reset_arena)
         self.accept("m", self.spawn_monster)
-        for index in range(1, len(FISHING_RODS) + 1):
-            self.accept(str(index), self.select_shop_rod, [index - 1])
+        for index in range(1, 5):
+            self.accept(str(index), self._select_menu_item, [index - 1])
         self.accept("escape", self.userExit)
 
     def _set_key(self, key: str, value: bool):
@@ -799,6 +814,8 @@ class SwordfishGame(ShowBase):
             tree.setH(self.rng.uniform(-18, 18))
 
         self._build_shop()
+        self._build_forge()
+        self._build_boss_arena()
         self._build_world_details()
         self._build_treasure_map()
         self._build_field_chests()
@@ -1113,12 +1130,18 @@ class SwordfishGame(ShowBase):
                 5.4, 4.2, (0.12, 0.25, 0.12, 1),
                 points=18, wobble=0.2, rotation_degrees=index * 45, seed=300 + index,
             )
-            chest = self._make_chest(chest_index, name, pos, reward, guard_kind)
+            chest = self._make_chest(chest_index, name, pos, reward, guard_kind, bounds)
             self.chests.append(chest)
             self._spawn_chest_guards(chest_index, pos, guard_kind, bounds=bounds)
 
     def _make_chest(
-        self, index: int, name: str, pos: Vec3, reward_gold: int, guard_kind: str
+        self,
+        index: int,
+        name: str,
+        pos: Vec3,
+        reward_gold: int,
+        guard_kind: str,
+        guard_bounds: Optional[Tuple[float, float, float, float]] = None,
     ) -> SceneChest:
         root = self.render.attachNewNode(f"treasure-chest-{index}")
         root.setPos(pos)
@@ -1135,6 +1158,7 @@ class SwordfishGame(ShowBase):
             pos=Vec3(pos),
             reward_gold=reward_gold,
             guard_kind=guard_kind,
+            guard_bounds=guard_bounds,
         )
 
     def _spawn_chest_guards(self, chest_index: int, chest_pos: Vec3, guard_kind: str,
@@ -1590,6 +1614,73 @@ class SwordfishGame(ShowBase):
                 (0, 0, self.rng.uniform(-20, 20)),
             )
 
+    def _build_forge(self):
+        forge = self.render.attachNewNode("forge")
+        forge.setPos(FORGE_SPOT)
+
+        stone = (0.38, 0.35, 0.32, 1)
+        dark_iron = (0.18, 0.16, 0.14, 1)
+        ember = (1.0, 0.42, 0.08, 0.72)
+        wood = (0.42, 0.25, 0.12, 1)
+
+        make_box(forge, "forge-platform", (3.6, 2.8, 0.14), (0.28, 0.24, 0.18, 1), (0, 0, 0.02))
+        make_box(forge, "anvil-base", (0.7, 0.5, 0.45), dark_iron, (0, -0.3, 0.32))
+        make_box(forge, "anvil-top", (0.9, 0.55, 0.12), dark_iron, (0, -0.3, 0.6))
+        make_box(forge, "anvil-horn", (0.22, 0.18, 0.18), dark_iron, (0.55, -0.3, 0.52), (0, 0, -15))
+        make_box(forge, "furnace-body", (0.9, 0.8, 1.1), stone, (-0.05, 0.55, 0.62))
+        make_box(forge, "furnace-chimney", (0.35, 0.35, 0.7), stone, (-0.05, 0.55, 1.52))
+        make_box(forge, "furnace-mouth", (0.45, 0.12, 0.38), (0.06, 0.04, 0.03, 1), (-0.05, 0.12, 0.45))
+        ember_node = make_box(forge, "furnace-ember", (0.38, 0.08, 0.3), ember, (-0.05, 0.1, 0.45))
+        self._add_animated_detail(ember_node, bob_amount=0.01, sway_amount=0, speed=4.0, phase=0)
+        make_box(forge, "forge-hammer", (0.12, 0.12, 0.55), wood, (0.65, 0.2, 0.42), (0, -18, 12))
+        make_box(forge, "forge-hammer-head", (0.22, 0.18, 0.14), dark_iron, (0.65, 0.18, 0.72), (0, -18, 12))
+        make_box(forge, "forge-tongs", (0.08, 0.08, 0.48), dark_iron, (0.45, -0.65, 0.32), (0, 24, 0))
+        make_box(forge, "forge-bucket", (0.32, 0.32, 0.28), wood, (-0.75, -0.55, 0.22))
+        make_box(forge, "forge-bucket-water", (0.26, 0.26, 0.04), (0.2, 0.42, 0.58, 0.7), (-0.75, -0.55, 0.38))
+        make_box(forge, "forge-sign-post", (0.12, 0.12, 1.5), wood, (1.45, -0.6, 0.75))
+        make_box(forge, "forge-sign-board", (1.2, 0.14, 0.42), (0.12, 0.08, 0.04, 1), (1.45, -0.7, 1.65))
+
+    def _build_boss_arena(self):
+        arena = self.render.attachNewNode("boss-arena")
+        arena.setPos(BOSS_ARENA_CENTER)
+
+        stone = (0.32, 0.3, 0.28, 1)
+        dark_stone = (0.18, 0.16, 0.14, 1)
+        torch_color = (1.0, 0.65, 0.18, 0.8)
+
+        make_flat_blob(
+            arena, "boss-floor", (0, 0, 0.01), BOSS_ARENA_RADIUS, BOSS_ARENA_RADIUS,
+            (0.26, 0.22, 0.18, 1), points=24, wobble=0.06, rotation_degrees=0, seed=901,
+        )
+
+        pillar_count = 8
+        for i in range(pillar_count):
+            angle = math.pi * 2.0 * i / pillar_count
+            px = math.cos(angle) * (BOSS_ARENA_RADIUS - 0.6)
+            py = math.sin(angle) * (BOSS_ARENA_RADIUS - 0.6)
+            make_box(arena, f"boss-pillar-{i}", (0.5, 0.5, 2.8), stone, (px, py, 1.4))
+            make_box(arena, f"boss-pillar-cap-{i}", (0.65, 0.65, 0.2), dark_stone, (px, py, 2.9))
+
+        for i in range(0, pillar_count, 2):
+            angle = math.pi * 2.0 * i / pillar_count
+            tx = math.cos(angle) * (BOSS_ARENA_RADIUS - 0.3)
+            ty = math.sin(angle) * (BOSS_ARENA_RADIUS - 0.3)
+            make_box(arena, f"boss-torch-post-{i}", (0.12, 0.12, 0.65), dark_stone, (tx, ty, 3.15))
+            torch = make_box(arena, f"boss-torch-flame-{i}", (0.18, 0.18, 0.22), torch_color, (tx, ty, 3.55))
+            self._add_animated_detail(torch, bob_amount=0.03, sway_amount=0, speed=5.0, phase=i * 0.7)
+
+        make_box(arena, "boss-throne-base", (1.8, 1.2, 0.55), dark_stone, (0, BOSS_ARENA_RADIUS - 1.8, 0.28))
+        make_box(arena, "boss-throne-back", (1.4, 0.35, 2.2), stone, (0, BOSS_ARENA_RADIUS - 1.4, 1.38))
+        make_box(arena, "boss-throne-left", (0.3, 0.8, 1.2), stone, (-0.7, BOSS_ARENA_RADIUS - 1.8, 0.88))
+        make_box(arena, "boss-throne-right", (0.3, 0.8, 1.2), stone, (0.7, BOSS_ARENA_RADIUS - 1.8, 0.88))
+        make_box(arena, "boss-throne-crown-l", (0.22, 0.22, 0.35), (0.85, 0.72, 0.22, 1), (-0.45, BOSS_ARENA_RADIUS - 1.3, 2.65))
+        make_box(arena, "boss-throne-crown-r", (0.22, 0.22, 0.35), (0.85, 0.72, 0.22, 1), (0.45, BOSS_ARENA_RADIUS - 1.3, 2.65))
+
+        gate_color = (0.52, 0.35, 0.15, 1)
+        make_box(arena, "boss-gate-left", (0.4, 0.4, 2.4), gate_color, (-2.2, -(BOSS_ARENA_RADIUS - 0.6), 1.2))
+        make_box(arena, "boss-gate-right", (0.4, 0.4, 2.4), gate_color, (2.2, -(BOSS_ARENA_RADIUS - 0.6), 1.2))
+        make_box(arena, "boss-gate-beam", (4.8, 0.35, 0.4), gate_color, (0, -(BOSS_ARENA_RADIUS - 0.6), 2.5))
+
     def _build_player(self):
         self.player = self.render.attachNewNode("player")
         make_box(
@@ -1750,8 +1841,9 @@ class SwordfishGame(ShowBase):
         self._build_slash_trail()
         self.player.setPos(0, 3.0, 0)
 
-        self.camera.setPos(0, -17, 14)
-        self.camera.lookAt(self.player)
+        if self.camera is not None:
+            self.camera.setPos(0, -17, 14)
+            self.camera.lookAt(self.player)
 
     def _build_weapon_model(self, weapon: Optional[Weapon]):
         if self.weapon_root is not None:
@@ -2294,6 +2386,7 @@ class SwordfishGame(ShowBase):
         )
         self._build_inspection_ui()
         self._build_shop_ui()
+        self._build_forge_ui()
         self._update_ui()
 
     def _build_inspection_ui(self):
@@ -2352,6 +2445,32 @@ class SwordfishGame(ShowBase):
         )
         self.shop_frame.hide()
 
+    def _build_forge_ui(self):
+        self.forge_frame = DirectFrame(
+            frameColor=(0.04, 0.028, 0.02, 0.9),
+            frameSize=(-0.58, 0.58, -0.48, 0.48),
+            pos=(0.68, 0, 0.15),
+        )
+        self.forge_title = OnscreenText(
+            text="",
+            parent=self.forge_frame,
+            pos=(-0.52, 0.37),
+            scale=0.052,
+            align=TextNode.ALeft,
+            fg=(1.0, 0.62, 0.28, 1),
+            mayChange=True,
+        )
+        self.forge_body = OnscreenText(
+            text="",
+            parent=self.forge_frame,
+            pos=(-0.52, 0.22),
+            scale=0.032,
+            align=TextNode.ALeft,
+            fg=(0.94, 0.88, 0.78, 1),
+            mayChange=True,
+        )
+        self.forge_frame.hide()
+
     def _update(self, task):
         dt = min(globalClock.getDt(), 0.05)
         self.attack_cooldown = max(0.0, self.attack_cooldown - dt)
@@ -2360,6 +2479,8 @@ class SwordfishGame(ShowBase):
         self.water_bump_cooldown = max(0.0, self.water_bump_cooldown - dt)
         if self.shop_open and self._distance_to_shop() > SHOP_RANGE + 0.45:
             self.shop_open = False
+        if self.forge_open and self._distance_to_forge() > FORGE_RANGE + 0.45:
+            self.forge_open = False
         self._move_player(dt)
         self._update_player_walk(dt)
         self._update_death_sequence(dt)
@@ -2638,6 +2759,17 @@ class SwordfishGame(ShowBase):
 
         return enemy_pos
 
+    def _damage_player_from_enemy(self, enemy: SceneEnemy, attack_text: str):
+        damage = apply_damage(enemy.contact_damage, self.player_armor_value)
+        self.player_hp = max(0, self.player_hp - damage)
+        if self.player_armor_value > 0 and damage < enemy.contact_damage:
+            blocked = enemy.contact_damage - damage
+            self._log(f"{enemy.name} {attack_text} for {damage}. Armor blocks {blocked}.")
+        else:
+            self._log(f"{enemy.name} {attack_text} for {damage}.")
+        if self.player_hp == 0:
+            self._start_death_sequence()
+
     def _update_monster(self, enemy: SceneEnemy, player_pos: Vec3, enemy_pos: Vec3, dt: float):
         to_player = player_pos - enemy_pos
         to_player.setZ(0)
@@ -2664,10 +2796,7 @@ class SwordfishGame(ShowBase):
             if self._player_is_invulnerable():
                 self._log(f"You roll under {enemy.name}'s bite.")
             else:
-                self.player_hp = max(0, self.player_hp - enemy.contact_damage)
-                self._log(f"{enemy.name} bites for {enemy.contact_damage}.")
-                if self.player_hp == 0:
-                    self._start_death_sequence()
+                self._damage_player_from_enemy(enemy, "bites")
             self._release_attack_token(enemy)
 
         self._animate_monster(enemy, dt, moving)
@@ -2715,10 +2844,7 @@ class SwordfishGame(ShowBase):
                 if self._player_is_invulnerable():
                     self._log(f"You roll under {enemy.name}'s dive.")
                 else:
-                    self.player_hp = max(0, self.player_hp - enemy.contact_damage)
-                    self._log(f"{enemy.name} rakes you for {enemy.contact_damage}.")
-                    if self.player_hp == 0:
-                        self._start_death_sequence()
+                    self._damage_player_from_enemy(enemy, "rakes you")
 
             if enemy.state_timer <= 0.0:
                 enemy.ai_state = "circle"
@@ -2804,10 +2930,7 @@ class SwordfishGame(ShowBase):
                 if self._player_is_invulnerable():
                     self._log(f"You roll clear of {enemy.name}'s charge.")
                 else:
-                    self.player_hp = max(0, self.player_hp - enemy.contact_damage)
-                    self._log(f"{enemy.name} gores you for {enemy.contact_damage}.")
-                    if self.player_hp == 0:
-                        self._start_death_sequence()
+                    self._damage_player_from_enemy(enemy, "gores you")
 
             if enemy.state_timer <= 0.0:
                 enemy.ai_state = "stalk"
@@ -2905,10 +3028,7 @@ class SwordfishGame(ShowBase):
                 if self._player_is_invulnerable():
                     self._log(f"You roll past {enemy.name}'s lunge.")
                 else:
-                    self.player_hp = max(0, self.player_hp - enemy.contact_damage)
-                    self._log(f"{enemy.name} lunges for {enemy.contact_damage}.")
-                    if self.player_hp == 0:
-                        self._start_death_sequence()
+                    self._damage_player_from_enemy(enemy, "lunges")
 
             if enemy.state_timer <= 0.0:
                 enemy.ai_state = "idle"
@@ -3112,6 +3232,8 @@ class SwordfishGame(ShowBase):
         return pos
 
     def _update_camera(self):
+        if self.camera is None:
+            return
         target = self.player.getPos()
         self.camera.setPos(target.getX(), target.getY() - 18.0, 14.0)
         self.camera.lookAt(target.getX(), target.getY() + 1.0, 0.4)
@@ -3123,13 +3245,23 @@ class SwordfishGame(ShowBase):
                 self._try_open_chest(chest)
             elif self._distance_to_shop() <= SHOP_RANGE:
                 self.shop_open = not self.shop_open
+                self.forge_open = False
                 if self.shop_open:
                     self.inspect_open = False
                     self._log("The rod seller opens the rack. Press 1-4 to choose.")
                 else:
                     self._log("You close the rod shop menu.")
+            elif self._distance_to_forge() <= FORGE_RANGE:
+                self.forge_open = not self.forge_open
+                self.shop_open = False
+                if self.forge_open:
+                    self.inspect_open = False
+                    self._log("The armorer opens the forge rack. Press 1-4 to choose armor.")
+                else:
+                    self._log("You close the forge menu.")
             else:
                 self.shop_open = False
+                self.forge_open = False
                 self._start_fishing_cast()
         elif self.fishing_state == "waiting":
             self._log("Not yet. The bobber only drifts.")
@@ -3141,6 +3273,9 @@ class SwordfishGame(ShowBase):
 
     def _distance_to_shop(self) -> float:
         return (self.player.getPos() - self.shop_spot).length()
+
+    def _distance_to_forge(self) -> float:
+        return (self.player.getPos() - FORGE_SPOT).length()
 
     def _nearest_chest(self) -> Optional[SceneChest]:
         player_pos = self.player.getPos()
@@ -3181,6 +3316,12 @@ class SwordfishGame(ShowBase):
         self._set_catch_banner(f"Chest opened!\n+{chest.reward_gold} gold")
         self._log(f"You open {chest.name} and find {chest.reward_gold} gold.")
 
+    def _select_menu_item(self, index: int):
+        if self.shop_open:
+            self.select_shop_rod(index)
+        elif self.forge_open:
+            self.select_armor(index)
+
     def select_shop_rod(self, tier: int):
         if not self.shop_open:
             return
@@ -3211,6 +3352,32 @@ class SwordfishGame(ShowBase):
         self._log(f"You buy the {rod.name} for {rod.price} gold.")
         self._log("Better rods pull stronger relics from deeper water.")
         self._update_shop_ui()
+
+    def select_armor(self, tier: int):
+        if not self.forge_open:
+            return
+        if tier < 0 or tier >= len(ARMOR_TIERS):
+            return
+        if self._distance_to_forge() > FORGE_RANGE + 0.45:
+            self.forge_open = False
+            self._log("You are too far from the forge.")
+            return
+
+        armor = armor_tier_for_index(tier)
+        if tier <= self.player_armor_tier:
+            self._log(f"You already have armor at least as good as {armor.name}.")
+            return
+        if self.gold < armor.cost:
+            needed = armor.cost - self.gold
+            self._log(f"{armor.name} costs {armor.cost} gold. You need {needed} more.")
+            return
+
+        self.gold -= armor.cost
+        self.player_armor_tier = tier
+        self.player_armor_value = armor.armor_value
+        self._set_catch_banner(f"Armor bought!\n{armor.name}")
+        self._log(f"You buy {armor.name}. It blocks {armor.armor_value} damage.")
+        self._update_forge_ui()
 
     def toggle_inspection(self):
         if self.current_weapon is None:
@@ -3742,7 +3909,9 @@ class SwordfishGame(ShowBase):
     def _respawn_chest_guards(self):
         for index, chest in enumerate(self.chests):
             if not chest.opened:
-                self._spawn_chest_guards(index, chest.pos, chest.guard_kind)
+                self._spawn_chest_guards(
+                    index, chest.pos, chest.guard_kind, bounds=chest.guard_bounds
+                )
 
     def spawn_rabbits(self, count: int = 3):
         for index in range(count):
@@ -3949,6 +4118,68 @@ class SwordfishGame(ShowBase):
             home_pos=Vec3(pos),
         )
 
+    def _make_boss(self) -> SceneEnemy:
+        pos = Vec3(BOSS_ARENA_CENTER.getX(), BOSS_ARENA_CENTER.getY(), 0)
+        root = self.render.attachNewNode("boss")
+        make_box(root, "boss-shadow", (2.0, 1.4, 0.03), (0.02, 0.025, 0.02, 0.3), (0, 0, 0.035))
+        visual = root.attachNewNode("boss-visual")
+        crown_gold = (0.85, 0.72, 0.22, 1)
+        cape_color = (0.55, 0.08, 0.12, 1)
+        armor_color = (0.28, 0.26, 0.24, 1)
+        skin_color = (0.62, 0.48, 0.38, 1)
+
+        body = make_box(visual, "boss-body", (0.9, 0.6, 1.4), armor_color, (0, 0, 1.1))
+        make_box(visual, "boss-cape", (1.0, 0.2, 1.5), cape_color, (0, -0.35, 1.15))
+        make_box(visual, "boss-belt", (0.95, 0.65, 0.15), (0.42, 0.28, 0.12, 1), (0, 0, 0.5))
+        head = visual.attachNewNode("boss-head-pivot")
+        head.setPos(0, 0, 2.0)
+        make_box(head, "boss-head", (0.5, 0.45, 0.55), skin_color)
+        make_box(head, "boss-crown", (0.6, 0.5, 0.22), crown_gold, (0, 0, 0.35))
+        make_box(head, "boss-crown-point-l", (0.08, 0.08, 0.2), crown_gold, (-0.2, 0, 0.52))
+        make_box(head, "boss-crown-point-r", (0.08, 0.08, 0.2), crown_gold, (0.2, 0, 0.52))
+        make_box(head, "boss-crown-point-c", (0.08, 0.08, 0.25), crown_gold, (0, 0, 0.55))
+        make_box(head, "boss-eye-left", (0.1, 0.06, 0.1), (0.85, 0.15, 0.1, 1), (-0.14, -0.24, 0.05))
+        make_box(head, "boss-eye-right", (0.1, 0.06, 0.1), (0.85, 0.15, 0.1, 1), (0.14, -0.24, 0.05))
+        make_box(head, "boss-beard", (0.32, 0.12, 0.28), (0.4, 0.35, 0.3, 1), (0, -0.22, -0.28))
+
+        left_arm = visual.attachNewNode("boss-left-arm-pivot")
+        left_arm.setPos(-0.6, 0, 1.65)
+        make_box(left_arm, "boss-left-arm", (0.25, 0.25, 0.75), armor_color, (0, 0, -0.38))
+        make_box(left_arm, "boss-left-gauntlet", (0.28, 0.28, 0.2), (0.35, 0.32, 0.28, 1), (0, 0, -0.78))
+
+        right_arm = visual.attachNewNode("boss-right-arm-pivot")
+        right_arm.setPos(0.6, 0, 1.65)
+        make_box(right_arm, "boss-right-arm", (0.25, 0.25, 0.75), armor_color, (0, 0, -0.38))
+        make_box(right_arm, "boss-sword-hilt", (0.12, 0.12, 0.28), (0.42, 0.28, 0.12, 1), (0, 0, -0.92))
+        make_box(right_arm, "boss-sword-blade", (0.08, 0.16, 1.15), (0.65, 0.62, 0.58, 1), (0, 0, -1.55))
+        make_box(right_arm, "boss-sword-guard", (0.28, 0.06, 0.06), (0.42, 0.28, 0.12, 1), (0, 0, -0.78))
+
+        make_box(visual, "boss-left-leg", (0.3, 0.3, 0.75), armor_color, (-0.22, 0, 0.0))
+        make_box(visual, "boss-right-leg", (0.3, 0.3, 0.75), armor_color, (0.22, 0, 0.0))
+        make_box(visual, "boss-left-boot", (0.35, 0.4, 0.18), (0.2, 0.16, 0.12, 1), (-0.22, 0.05, -0.35))
+        make_box(visual, "boss-right-boot", (0.35, 0.4, 0.18), (0.2, 0.16, 0.12, 1), (0.22, 0.05, -0.35))
+
+        root.setPos(pos)
+        root.setScale(1.35)
+        enemy = SceneEnemy(
+            name="The Old King",
+            kind="boss",
+            hp=120,
+            max_hp=120,
+            node=root,
+            speed=1.8,
+            contact_damage=8,
+            visual_node=visual,
+            body_node=body,
+            head_node=head,
+            left_detail_node=left_arm,
+            right_detail_node=right_arm,
+            animation_phase=0.0,
+            ai_state="stalk",
+            home_pos=Vec3(pos),
+        )
+        return enemy
+
     def _random_field_position(self) -> Vec3:
         """Pick a spot out in the open field, away from the central hub."""
 
@@ -3995,10 +4226,14 @@ class SwordfishGame(ShowBase):
 
     def _update_ui(self):
         rod = fishing_rod_for_tier(self.rod_tier)
+        armor_name = "None"
+        if self.player_armor_tier >= 0:
+            armor_name = armor_tier_for_index(self.player_armor_tier).name
         self.status_text.setText(
             f"Health {self.player_hp}/{self.player_max_hp}\n"
             f"Gold {self.gold}\n"
             f"Rod {rod.name}\n"
+            f"Armor {armor_name}\n"
             f"Enemies nearby {len(self.enemies)}"
         )
 
@@ -4016,6 +4251,7 @@ class SwordfishGame(ShowBase):
 
         distance_to_lake = (self.player.getPos() - self.fishing_spot).length()
         distance_to_shop = self._distance_to_shop()
+        distance_to_forge = self._distance_to_forge()
         nearby_chest = self._nearest_chest()
         if self.fishing_state == "casting":
             prompt = "Casting..."
@@ -4035,6 +4271,8 @@ class SwordfishGame(ShowBase):
                 prompt = "Press E to open the chest."
         elif distance_to_shop <= SHOP_RANGE:
             prompt = self._shop_prompt()
+        elif distance_to_forge <= FORGE_RANGE:
+            prompt = self._forge_prompt()
         elif distance_to_lake <= FISHING_RANGE:
             prompt = "Press E to cast into the lake."
         elif self.enemies:
@@ -4050,12 +4288,18 @@ class SwordfishGame(ShowBase):
 
         self._update_inspection_ui()
         self._update_shop_ui()
+        self._update_forge_ui()
         self.log_text.setText("\n".join(self.log_lines[-7:]))
 
     def _shop_prompt(self) -> str:
         if self.shop_open:
             return "Press 1-4 to choose a rod, or E to close."
         return "Press E to open the rod shop."
+
+    def _forge_prompt(self) -> str:
+        if self.forge_open:
+            return "Press 1-4 to choose armor, or E to close."
+        return "Press E to open the forge."
 
     def _update_shop_ui(self):
         if self.shop_frame is None:
@@ -4082,6 +4326,36 @@ class SwordfishGame(ShowBase):
                 state = f"need {rod.price - self.gold}"
             lines.append(f"{index}. {rod.name}")
             lines.append(f"   {rod.price} gold - {state}")
+        lines.extend(("", "Press a number to buy."))
+        return "\n".join(lines)
+
+    def _update_forge_ui(self):
+        if self.forge_frame is None:
+            return
+
+        if not self.forge_open:
+            self.forge_frame.hide()
+            return
+
+        self.forge_frame.show()
+        self.forge_title.setText("Armor Forge")
+        self.forge_body.setText(self._format_forge_menu())
+
+    def _format_forge_menu(self) -> str:
+        current = "none"
+        if self.player_armor_tier >= 0:
+            current = armor_tier_for_index(self.player_armor_tier).name
+        lines = [f"Gold: {self.gold}", f"Current: {current}", ""]
+        for index, armor in enumerate(ARMOR_TIERS, start=1):
+            tier = index - 1
+            if tier <= self.player_armor_tier:
+                state = "owned"
+            elif self.gold >= armor.cost:
+                state = "ready"
+            else:
+                state = f"need {armor.cost - self.gold}"
+            lines.append(f"{index}. {armor.name}")
+            lines.append(f"   {armor.cost} gold - blocks {armor.armor_value} - {state}")
         lines.extend(("", "Press a number to buy."))
         return "\n".join(lines)
 

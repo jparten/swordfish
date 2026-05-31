@@ -99,6 +99,27 @@ RARITY_DETAIL_BY_NAME = {
     for rarity, _weight, enchantment_count, damage_range in RARITY_TABLE
 }
 
+@dataclass(frozen=True)
+class ArmorTier:
+    name: str
+    cost: int
+    armor_value: int
+
+
+ARMOR_TIERS: Tuple[ArmorTier, ...] = (
+    ArmorTier(name="Leather Vest", cost=15, armor_value=1),
+    ArmorTier(name="Chain Shirt", cost=40, armor_value=2),
+    ArmorTier(name="Iron Plate", cost=80, armor_value=4),
+    ArmorTier(name="Dragon Scale", cost=150, armor_value=6),
+)
+
+
+def armor_tier_for_index(idx: int) -> ArmorTier:
+    """Return an armor tier by index, clamped to valid range."""
+    clamped = max(0, min(idx, len(ARMOR_TIERS) - 1))
+    return ARMOR_TIERS[clamped]
+
+
 FISHING_RODS: Tuple[FishingRodTier, ...] = (
     FishingRodTier(
         tier=0,
