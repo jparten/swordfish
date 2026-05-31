@@ -17,6 +17,13 @@ class Enchantment:
     description: str
 
 
+@dataclass(frozen=True)
+class WeaponAbility:
+    key: str
+    display_name: str
+    description: str
+
+
 @dataclass
 class Weapon:
     name: str
@@ -24,6 +31,7 @@ class Weapon:
     base_damage: int
     enchantments: Tuple[Enchantment, ...]
     weapon_type: str = "saber"
+    ability: Optional[WeaponAbility] = None
     discovered: Set[str] = field(default_factory=set)
 
     def known_trait_names(self) -> Tuple[str, ...]:
@@ -87,6 +95,74 @@ ENCHANTMENTS: Tuple[Enchantment, ...] = (
 
 ENCHANTMENT_BY_KEY = {enchantment.key: enchantment for enchantment in ENCHANTMENTS}
 
+WEAPON_ABILITIES: Tuple[WeaponAbility, ...] = (
+    WeaponAbility(
+        key="mooncut",
+        display_name="Mooncut",
+        description="Sabers add a clean duelist slash for extra damage.",
+    ),
+    WeaponAbility(
+        key="finisher",
+        display_name="Finisher Chop",
+        description="Cleavers hit badly wounded enemies much harder.",
+    ),
+    WeaponAbility(
+        key="banner_pierce",
+        display_name="Banner Pierce",
+        description="Spears jab from long range and strike flying enemies harder.",
+    ),
+    WeaponAbility(
+        key="sweeping_edge",
+        display_name="Sweeping Edge",
+        description="Falchions add a wide cutting arc, especially against small foes.",
+    ),
+    WeaponAbility(
+        key="armor_crack",
+        display_name="Armor Crack",
+        description="Axes bite harder into tough, shelled, or massive enemies.",
+    ),
+    WeaponAbility(
+        key="needle_crit",
+        display_name="Needle Crit",
+        description="Rapiers always add a precise stab and sometimes land a big critical hit.",
+    ),
+    WeaponAbility(
+        key="thunder_knock",
+        display_name="Thunder Knock",
+        description="Maces add a heavy impact, with extra force against sturdy enemies.",
+    ),
+    WeaponAbility(
+        key="star_bolt",
+        display_name="Star Bolt",
+        description="Mage staffs fire a ranged spell, with extra bite against wisps.",
+    ),
+    WeaponAbility(
+        key="thornshot",
+        display_name="Thornshot",
+        description="Bows loose a ranged arrow that is especially good against quick targets.",
+    ),
+    WeaponAbility(
+        key="boltbreaker",
+        display_name="Boltbreaker",
+        description="Crossbows fire a heavy ranged bolt that punches into sturdy enemies.",
+    ),
+)
+
+ABILITY_BY_KEY = {ability.key: ability for ability in WEAPON_ABILITIES}
+ABILITY_KEY_BY_WEAPON_TYPE = {
+    "saber": "mooncut",
+    "cleaver": "finisher",
+    "spear": "banner_pierce",
+    "falchion": "sweeping_edge",
+    "axe": "armor_crack",
+    "rapier": "needle_crit",
+    "mace": "thunder_knock",
+    "staff": "star_bolt",
+    "bow": "thornshot",
+    "crossbow": "boltbreaker",
+}
+RANGED_WEAPON_TYPES = ("staff", "bow", "crossbow")
+
 RARITY_TABLE = (
     ("weathered", 55, 1, (4, 6)),
     ("strange", 28, 1, (6, 8)),
@@ -107,10 +183,10 @@ class ArmorTier:
 
 
 ARMOR_TIERS: Tuple[ArmorTier, ...] = (
-    ArmorTier(name="Leather Vest", cost=15, armor_value=1),
-    ArmorTier(name="Chain Shirt", cost=40, armor_value=2),
-    ArmorTier(name="Iron Plate", cost=80, armor_value=4),
-    ArmorTier(name="Dragon Scale", cost=150, armor_value=6),
+    ArmorTier(name="Leather Vest", cost=30, armor_value=1),
+    ArmorTier(name="Chain Shirt", cost=75, armor_value=2),
+    ArmorTier(name="Iron Plate", cost=150, armor_value=4),
+    ArmorTier(name="Dragon Scale", cost=275, armor_value=6),
 )
 
 
@@ -130,19 +206,19 @@ FISHING_RODS: Tuple[FishingRodTier, ...] = (
     FishingRodTier(
         tier=1,
         name="Copper Hook Rod",
-        price=20,
+        price=35,
         rarity_weights=(45, 35, 20, 0),
     ),
     FishingRodTier(
         tier=2,
         name="Moon-Reed Rod",
-        price=50,
+        price=90,
         rarity_weights=(25, 35, 32, 8),
     ),
     FishingRodTier(
         tier=3,
         name="Starbone Rod",
-        price=100,
+        price=180,
         rarity_weights=(12, 25, 40, 23),
     ),
 )
@@ -167,6 +243,9 @@ NAME_NOUNS = (
     "Rapier",
     "Mace",
     "Spear",
+    "Staff",
+    "Bow",
+    "Crossbow",
 )
 
 WEAPON_TYPE_BY_NOUN = {
@@ -178,6 +257,9 @@ WEAPON_TYPE_BY_NOUN = {
     "Rapier": "rapier",
     "Mace": "mace",
     "Spear": "spear",
+    "Staff": "staff",
+    "Bow": "bow",
+    "Crossbow": "crossbow",
 }
 
 
@@ -201,6 +283,7 @@ def generate_weapon(rng: Optional[random.Random] = None, rod_tier: int = 0) -> W
         base_damage=rng.randint(*damage_range),
         enchantments=enchantments,
         weapon_type=WEAPON_TYPE_BY_NOUN[noun],
+        ability=ability_for_weapon_type(WEAPON_TYPE_BY_NOUN[noun]),
     )
 
 
@@ -235,6 +318,32 @@ def trait_summary(weapon: Weapon) -> str:
     return ", ".join(visible_traits) if visible_traits else "none"
 
 
+def ability_for_weapon_type(weapon_type: str) -> WeaponAbility:
+    """Return the built-in ability for a weapon form."""
+
+    key = ABILITY_KEY_BY_WEAPON_TYPE.get(weapon_type, "mooncut")
+    return ABILITY_BY_KEY[key]
+
+
+def weapon_ability(weapon: Weapon) -> WeaponAbility:
+    """Return a weapon's assigned ability, falling back to its form ability."""
+
+    return weapon.ability or ability_for_weapon_type(weapon.weapon_type)
+
+
+def ability_summary(weapon: Weapon) -> str:
+    """Return the weapon ability name, hidden until the player discovers it."""
+
+    ability = weapon_ability(weapon)
+    return ability.display_name if ability.key in weapon.discovered else "???"
+
+
+def is_ranged_weapon(weapon: Weapon) -> bool:
+    """Return whether the weapon attacks from range instead of melee reach."""
+
+    return weapon.weapon_type in RANGED_WEAPON_TYPES
+
+
 def discover_traits(weapon: Weapon, trait_keys: Iterable[str]) -> Tuple[str, ...]:
     """Mark traits as discovered and return the newly revealed display names."""
 
@@ -243,6 +352,9 @@ def discover_traits(weapon: Weapon, trait_keys: Iterable[str]) -> Tuple[str, ...
         if key in ENCHANTMENT_BY_KEY and key not in weapon.discovered:
             weapon.discovered.add(key)
             newly_revealed.append(ENCHANTMENT_BY_KEY[key].display_name)
+        elif key in ABILITY_BY_KEY and key not in weapon.discovered:
+            weapon.discovered.add(key)
+            newly_revealed.append(ABILITY_BY_KEY[key].display_name)
     return tuple(newly_revealed)
 
 

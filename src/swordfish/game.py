@@ -33,12 +33,15 @@ from .weapons import (
     ARMOR_TIERS,
     FISHING_RODS,
     Weapon,
+    ability_summary,
     armor_tier_for_index,
     discover_traits,
     fishing_rod_for_tier,
     generate_weapon,
+    is_ranged_weapon,
     next_fishing_rod,
     trait_summary,
+    weapon_ability,
 )
 
 
@@ -47,6 +50,9 @@ FOREST_EDGE = 69.0
 FOREST_GROUND = 220.0
 WORLD_FIELD_BOUNDS = (-WORLD_LIMIT + 2.0, WORLD_LIMIT - 2.0, -WORLD_LIMIT + 2.0, WORLD_LIMIT - 2.0)
 PLAYER_SPEED = 7.0
+HP_REGEN_DELAY = 4.0
+HP_REGEN_INTERVAL = 1.2
+HP_REGEN_AMOUNT = 1
 DODGE_SPEED = 20.0
 DODGE_DURATION = 0.22
 DODGE_COOLDOWN = 0.75
@@ -55,6 +61,8 @@ ENEMY_TURN_MAX_HOLD = 1.6
 ENEMY_WAIT_DISTANCE = 2.3
 LEASH_RANGE = 22.0
 ATTACK_RANGE = 2.6
+RANGED_ATTACK_RANGE = 10.0
+RANGED_ATTACK_CONE_DOT = 0.12
 FISHING_RANGE = 4.5
 SHOP_RANGE = 3.0
 CHEST_RANGE = 2.5
@@ -522,6 +530,8 @@ class SwordfishGame(ShowBase):
         self.shop_spot = Vec3(SHOP_SPOT)
         self.player_hp = 50
         self.player_max_hp = 50
+        self.hp_regen_cooldown = 0.0
+        self.hp_regen_timer = 0.0
         self.death_timer = 0.0
         self.death_duration = 2.25
         self.is_death_sequence = False
@@ -622,6 +632,7 @@ class SwordfishGame(ShowBase):
         )
         self._build_ground_layers()
         self._build_border_forest()
+        self._build_shading_details()
         make_flat_blob(
             self.render,
             "muddy-lake-bank",
@@ -1013,6 +1024,83 @@ class SwordfishGame(ShowBase):
                 (0, 0, rng.uniform(-25, 25)),
             )
             shrub_index += 1
+
+    def _build_shading_details(self):
+        rng = random.Random(260533)
+
+        for index, (x, y, sx, sy, rotation, alpha) in enumerate(
+            (
+                (-13.5, 5.0, 6.6, 12.8, -4, 0.22),
+                (14.0, 3.8, 6.4, 12.0, 3, 0.2),
+                (0.0, 18.0, 18.0, 2.6, 1, 0.18),
+                (0.0, -18.2, 18.0, 2.8, -2, 0.18),
+                (22.0, -27.0, 10.0, 6.4, 8, 0.12),
+                (-38.0, 38.0, 8.2, 8.2, 0, 0.18),
+            )
+        ):
+            make_flat_blob(
+                self.render,
+                f"broad-ground-shade-{index}",
+                (x, y, 0.018),
+                sx,
+                sy,
+                (0.01, 0.02, 0.012, alpha),
+                points=22,
+                wobble=0.18,
+                rotation_degrees=rotation,
+                seed=450 + index,
+            )
+
+        for index, (x, y, sx, sy, rotation) in enumerate(
+            (
+                (-10.4, 1.7, 3.6, 2.2, 8),
+                (6.5, 4.5, 3.1, 2.0, -8),
+                (0.0, 4.8, 2.8, 3.8, 0),
+                (0.0, -8.9, 8.8, 5.0, 0),
+                (16.8, -24.0, 2.0, 1.2, -10),
+                (24.8, -25.8, 2.0, 1.2, 14),
+                (21.5, -31.0, 2.0, 1.2, -6),
+            )
+        ):
+            make_flat_blob(
+                self.render,
+                f"object-ground-shade-{index}",
+                (x + 0.28, y - 0.22, 0.035),
+                sx,
+                sy,
+                (0.0, 0.0, 0.0, 0.2),
+                points=16,
+                wobble=0.12,
+                rotation_degrees=rotation,
+                seed=500 + index,
+            )
+
+        for index in range(34):
+            side = index % 4
+            if side == 0:
+                x = rng.uniform(-32.0, 32.0)
+                y = rng.uniform(21.0, 34.0)
+            elif side == 1:
+                x = rng.uniform(-32.0, 32.0)
+                y = rng.uniform(-34.0, -21.0)
+            elif side == 2:
+                x = rng.uniform(-34.0, -21.0)
+                y = rng.uniform(-32.0, 32.0)
+            else:
+                x = rng.uniform(21.0, 34.0)
+                y = rng.uniform(-32.0, 32.0)
+            make_flat_blob(
+                self.render,
+                f"forest-canopy-shadow-{index}",
+                (x, y, 0.025),
+                rng.uniform(1.2, 2.6),
+                rng.uniform(0.7, 1.6),
+                (0.0, 0.015, 0.006, rng.uniform(0.14, 0.24)),
+                points=12,
+                wobble=0.25,
+                rotation_degrees=rng.uniform(0, 180),
+                seed=560 + index,
+            )
 
     def _build_treasure_map(self):
         rng = random.Random(260532)
@@ -1697,6 +1785,29 @@ class SwordfishGame(ShowBase):
             (0.12, 0.36, 0.45, 1),
             (0, 0, 0.82),
         )
+        make_ellipsoid(
+            self.player,
+            "player-chest-shape",
+            (0.38, 0.26, 0.43),
+            (0.14, 0.42, 0.52, 1),
+            (0, 0.03, 0.96),
+            segments=10,
+            rings=5,
+        )
+        make_box(
+            self.player,
+            "player-tunic-front-panel",
+            (0.28, 0.04, 0.58),
+            (0.09, 0.27, 0.36, 1),
+            (0, 0.29, 0.86),
+        )
+        make_box(
+            self.player,
+            "player-tunic-hem",
+            (0.8, 0.54, 0.08),
+            (0.07, 0.22, 0.3, 1),
+            (0, 0.03, 0.36),
+        )
         make_box(
             self.player,
             "player-belt",
@@ -1706,10 +1817,33 @@ class SwordfishGame(ShowBase):
         )
         make_box(
             self.player,
+            "player-belt-buckle",
+            (0.16, 0.06, 0.16),
+            (0.95, 0.74, 0.28, 1),
+            (0, 0.3, 0.59),
+        )
+        make_box(
+            self.player,
             "player-scarf",
             (0.58, 0.08, 0.16),
             (0.72, 0.08, 0.12, 1),
             (0, 0.28, 1.18),
+        )
+        make_box(
+            self.player,
+            "player-scarf-tail",
+            (0.14, 0.1, 0.42),
+            (0.62, 0.06, 0.1, 1),
+            (-0.28, 0.22, 0.98),
+            (0, 0, -14),
+        )
+        make_box(
+            self.player,
+            "player-satchel-strap",
+            (0.1, 0.06, 1.18),
+            (0.23, 0.12, 0.06, 1),
+            (-0.1, 0.3, 0.96),
+            (0, 0, 24),
         )
         make_box(
             self.player,
@@ -1785,6 +1919,20 @@ class SwordfishGame(ShowBase):
             (0.07, 0.05, 0.04, 1),
             (0, 0.05, -0.5),
         )
+        make_box(
+            self.left_leg,
+            "player-left-boot-cuff",
+            (0.3, 0.28, 0.07),
+            (0.16, 0.1, 0.06, 1),
+            (0, 0, -0.37),
+        )
+        make_box(
+            self.left_leg,
+            "player-left-boot-toe",
+            (0.24, 0.18, 0.08),
+            (0.05, 0.035, 0.03, 1),
+            (0, 0.19, -0.53),
+        )
 
         self.right_leg = self.player.attachNewNode("right-leg")
         self.right_leg.setPos(0.19, 0, 0.52)
@@ -1802,6 +1950,20 @@ class SwordfishGame(ShowBase):
             (0.07, 0.05, 0.04, 1),
             (0, 0.05, -0.5),
         )
+        make_box(
+            self.right_leg,
+            "player-right-boot-cuff",
+            (0.3, 0.28, 0.07),
+            (0.16, 0.1, 0.06, 1),
+            (0, 0, -0.37),
+        )
+        make_box(
+            self.right_leg,
+            "player-right-boot-toe",
+            (0.24, 0.18, 0.08),
+            (0.05, 0.035, 0.03, 1),
+            (0, 0.19, -0.53),
+        )
 
         self.left_arm = self.player.attachNewNode("left-arm")
         self.left_arm.setPos(-0.52, 0.02, 1.06)
@@ -1814,6 +1976,21 @@ class SwordfishGame(ShowBase):
             (0, 0.16, -0.24),
             (0, 0, -14),
         )
+        make_box(
+            self.left_arm,
+            "left-cuff",
+            (0.2, 0.22, 0.1),
+            (0.07, 0.22, 0.3, 1),
+            (0, 0.26, -0.52),
+            (0, 0, -14),
+        )
+        make_box(
+            self.left_arm,
+            "left-hand",
+            (0.18, 0.17, 0.15),
+            (0.9, 0.64, 0.44, 1),
+            (0, 0.34, -0.63),
+        )
 
         self.right_arm = self.player.attachNewNode("right-arm")
         self.right_arm.setPos(0.52, 0.02, 1.06)
@@ -1824,6 +2001,14 @@ class SwordfishGame(ShowBase):
             (0.18, 0.2, 0.72),
             (0.1, 0.31, 0.39, 1),
             (0, 0.18, -0.22),
+            (0, 0, 14),
+        )
+        make_box(
+            self.right_arm,
+            "right-cuff",
+            (0.2, 0.22, 0.1),
+            (0.07, 0.22, 0.3, 1),
+            (0, 0.28, -0.5),
             (0, 0, 14),
         )
         make_box(
@@ -1925,7 +2110,33 @@ class SwordfishGame(ShowBase):
 
         make_box(parent, "grip", (0.13, 0.58, 0.13), leather, (0, 0.27, 0))
 
-        if weapon_type in {"saber", "falchion"}:
+        if weapon_type == "staff":
+            make_box(parent, "staff-shaft", (0.11, 1.7, 0.11), wood, (0, 1.02, 0))
+            make_box(parent, "staff-wrap-low", (0.15, 0.18, 0.15), leather, (0, 0.48, 0))
+            make_box(parent, "staff-wrap-high", (0.15, 0.18, 0.15), leather, (0, 1.22, 0))
+            make_ellipsoid(parent, "staff-orb", (0.2, 0.2, 0.2), glow, (0, 1.88, 0.0), segments=10, rings=5)
+            make_box(parent, "staff-prong-left", (0.08, 0.42, 0.08), brass, (-0.18, 1.72, 0.0), (0, 0, -20))
+            make_box(parent, "staff-prong-right", (0.08, 0.42, 0.08), brass, (0.18, 1.72, 0.0), (0, 0, 20))
+            make_box(parent, "staff-star-a", (0.5, 0.05, 0.05), glow, (0, 1.88, 0), (0, 0, 35))
+            make_box(parent, "staff-star-b", (0.05, 0.5, 0.05), glow, (0, 1.88, 0), (0, 0, 35))
+        elif weapon_type == "bow":
+            make_box(parent, "bow-grip", (0.16, 0.42, 0.14), leather, (0, 0.86, 0))
+            make_box(parent, "bow-upper-limb", (0.12, 0.96, 0.1), wood, (-0.28, 1.26, 0.0), (0, 0, -18))
+            make_box(parent, "bow-lower-limb", (0.12, 0.96, 0.1), wood, (0.28, 0.58, 0.0), (0, 0, -18))
+            make_box(parent, "bow-string", (0.035, 1.76, 0.035), glow, (0.3, 0.94, 0.04), (0, 0, 0))
+            make_box(parent, "bow-arrow-shaft", (0.06, 1.18, 0.06), metal, (0, 1.05, 0.12), (0, 0, 0))
+            make_flat_prism(parent, "bow-arrow-head", ((0, 1.78), (0.12, 1.58), (-0.12, 1.58)), 0.12, glow, (0, 0, 0.12))
+            make_box(parent, "bow-fletching-left", (0.16, 0.05, 0.06), brass, (-0.08, 0.48, 0.12), (0, 0, -25))
+            make_box(parent, "bow-fletching-right", (0.16, 0.05, 0.06), brass, (0.08, 0.48, 0.12), (0, 0, 25))
+        elif weapon_type == "crossbow":
+            make_box(parent, "crossbow-stock", (0.16, 1.32, 0.14), wood, (0, 0.9, 0.0))
+            make_box(parent, "crossbow-arms", (1.05, 0.1, 0.1), wood, (0, 1.26, 0.02))
+            make_box(parent, "crossbow-string-left", (0.48, 0.035, 0.035), glow, (-0.27, 1.08, 0.08), (0, 0, -22))
+            make_box(parent, "crossbow-string-right", (0.48, 0.035, 0.035), glow, (0.27, 1.08, 0.08), (0, 0, 22))
+            make_box(parent, "crossbow-trigger", (0.22, 0.08, 0.12), brass, (0, 0.56, -0.08))
+            make_box(parent, "crossbow-bolt", (0.07, 1.02, 0.07), metal, (0, 1.18, 0.16))
+            make_flat_prism(parent, "crossbow-bolt-head", ((0, 1.78), (0.13, 1.58), (-0.13, 1.58)), 0.14, glow, (0, 0, 0.16))
+        elif weapon_type in {"saber", "falchion"}:
             make_box(parent, "guard", (0.58, 0.08, 0.11), brass, (0, 0.58, 0))
             if weapon_type == "saber":
                 blade_points = (
@@ -2303,20 +2514,26 @@ class SwordfishGame(ShowBase):
         self.render.setShaderAuto()
 
         ambient = AmbientLight("soft-ambient")
-        ambient.setColor((0.48, 0.52, 0.56, 1))
+        ambient.setColor((0.34, 0.38, 0.42, 1))
         self.render.setLight(self.render.attachNewNode(ambient))
 
         sun = DirectionalLight("low-sun")
-        sun.setColor((1.05, 0.92, 0.72, 1))
+        sun.setColor((1.18, 0.96, 0.68, 1))
         sun_path = self.render.attachNewNode(sun)
-        sun_path.setHpr(-35, -55, 0)
+        sun_path.setHpr(-42, -48, 0)
         self.render.setLight(sun_path)
 
         fill = DirectionalLight("cool-fill")
-        fill.setColor((0.18, 0.28, 0.4, 1))
+        fill.setColor((0.13, 0.22, 0.34, 1))
         fill_path = self.render.attachNewNode(fill)
         fill_path.setHpr(130, -28, 0)
         self.render.setLight(fill_path)
+
+        rim = DirectionalLight("forest-rim")
+        rim.setColor((0.16, 0.26, 0.18, 1))
+        rim_path = self.render.attachNewNode(rim)
+        rim_path.setHpr(55, -18, 0)
+        self.render.setLight(rim_path)
 
         fog = Fog("distance-fog")
         fog.setColor(0.035, 0.08, 0.055)
@@ -2487,11 +2704,35 @@ class SwordfishGame(ShowBase):
         self._update_fishing(dt)
         self._update_world_details()
         self._update_enemies(dt)
+        self._update_hp_regen(dt)
         self._update_hit_effects(dt)
         self._update_swing(dt)
         self._update_camera()
         self._update_ui()
         return task.cont
+
+    def _pause_hp_regen(self):
+        self.hp_regen_cooldown = HP_REGEN_DELAY
+        self.hp_regen_timer = 0.0
+
+    def _update_hp_regen(self, dt: float):
+        if self.player_hp <= 0 or self.is_death_sequence:
+            self.hp_regen_timer = 0.0
+            return
+
+        if self.player_hp >= self.player_max_hp:
+            self.hp_regen_cooldown = 0.0
+            self.hp_regen_timer = 0.0
+            return
+
+        if self.hp_regen_cooldown > 0.0:
+            self.hp_regen_cooldown = max(0.0, self.hp_regen_cooldown - dt)
+            return
+
+        self.hp_regen_timer += dt
+        while self.hp_regen_timer >= HP_REGEN_INTERVAL and self.player_hp < self.player_max_hp:
+            self.hp_regen_timer -= HP_REGEN_INTERVAL
+            self.player_hp = min(self.player_max_hp, self.player_hp + HP_REGEN_AMOUNT)
 
     def _move_player(self, dt: float):
         self.is_player_moving = False
@@ -2704,6 +2945,10 @@ class SwordfishGame(ShowBase):
                     enemy.ai_state = "circle"
                 elif enemy.kind == "boar":
                     enemy.ai_state = "stalk"
+                elif enemy.kind == "snapper":
+                    enemy.ai_state = "stalk"
+                elif enemy.kind == "wisp":
+                    enemy.ai_state = "hover"
                 else:
                     enemy.ai_state = "idle"
                 self._walk_home(enemy, enemy_pos, dt)
@@ -2714,6 +2959,10 @@ class SwordfishGame(ShowBase):
                 self._update_bird(enemy, player_pos, enemy_pos, dt)
             elif enemy.kind == "boar":
                 self._update_boar(enemy, player_pos, enemy_pos, dt)
+            elif enemy.kind == "snapper":
+                self._update_snapper(enemy, player_pos, enemy_pos, dt)
+            elif enemy.kind == "wisp":
+                self._update_wisp(enemy, player_pos, enemy_pos, dt)
             else:
                 self._update_monster(enemy, player_pos, enemy_pos, dt)
 
@@ -2739,6 +2988,8 @@ class SwordfishGame(ShowBase):
         enemy.node.setPos(new_pos)
         if enemy.kind == "bird":
             enemy.node.setZ(1.8)
+        elif enemy.kind == "wisp":
+            enemy.node.setZ(1.15 + math.sin(enemy.animation_phase) * 0.18)
 
     def _update_enemy_feedback(self, enemy: SceneEnemy, dt: float) -> Vec3:
         enemy.attack_cooldown = max(0.0, enemy.attack_cooldown - dt)
@@ -2762,6 +3013,7 @@ class SwordfishGame(ShowBase):
     def _damage_player_from_enemy(self, enemy: SceneEnemy, attack_text: str):
         damage = apply_damage(enemy.contact_damage, self.player_armor_value)
         self.player_hp = max(0, self.player_hp - damage)
+        self._pause_hp_regen()
         if self.player_armor_value > 0 and damage < enemy.contact_damage:
             blocked = enemy.contact_damage - damage
             self._log(f"{enemy.name} {attack_text} for {damage}. Armor blocks {blocked}.")
@@ -2974,6 +3226,157 @@ class SwordfishGame(ShowBase):
             enemy.head_node.setP(-4.0 + wave * 3.0)
         if enemy.tail_node:
             enemy.tail_node.setH(wave * 8.0)
+
+    def _update_snapper(self, enemy: SceneEnemy, player_pos: Vec3, enemy_pos: Vec3, dt: float):
+        to_player = player_pos - enemy_pos
+        to_player.setZ(0)
+        distance = to_player.length()
+        flat = Vec3(to_player)
+        if distance > 0.05:
+            flat.normalize()
+            enemy.node.setH(math.degrees(math.atan2(-flat.getX(), flat.getY())))
+
+        if enemy.ai_state == "telegraph":
+            enemy.state_timer -= dt
+            if enemy.flash_time == 0.0:
+                enemy.node.setColorScale(0.78, 1.12, 0.86, 1)
+            self._animate_snapper(enemy, dt, False, tucked=True)
+            if enemy.state_timer <= 0.0:
+                enemy.ai_state = "snap"
+                enemy.state_timer = 0.28
+                enemy.attack_landed = False
+                if enemy.flash_time == 0.0:
+                    enemy.node.setColorScale(1, 1, 1, 1)
+            return
+
+        if enemy.ai_state == "snap":
+            enemy.state_timer -= dt
+            if not enemy.attack_landed and distance < 1.25:
+                enemy.attack_landed = True
+                enemy.attack_cooldown = 1.25
+                if self._player_is_invulnerable():
+                    self._log(f"You roll away from {enemy.name}'s snap.")
+                else:
+                    self._damage_player_from_enemy(enemy, "snaps")
+            self._animate_snapper(enemy, dt, False, snapping=True)
+            if enemy.state_timer <= 0.0:
+                enemy.ai_state = "stalk"
+                self._release_attack_token(enemy)
+            return
+
+        has_token = self._has_attack_token(enemy)
+        stand_off = 0.0 if has_token else ENEMY_WAIT_DISTANCE
+        moving = False
+        if stand_off < distance < 16.0:
+            enemy_pos = self._clamp_enemy_position(enemy, enemy_pos + flat * enemy.speed * dt)
+            enemy.node.setPos(enemy_pos)
+            moving = True
+        self._animate_snapper(enemy, dt, moving)
+
+        if distance < 2.1 and enemy.attack_cooldown == 0.0 and self._acquire_attack_token(enemy):
+            enemy.ai_state = "telegraph"
+            enemy.state_timer = 0.45
+
+    def _animate_snapper(
+        self,
+        enemy: SceneEnemy,
+        dt: float,
+        moving: bool,
+        tucked: bool = False,
+        snapping: bool = False,
+    ):
+        enemy.animation_phase += dt * (7.0 if moving else 3.0)
+        wave = math.sin(enemy.animation_phase)
+        visual = enemy.visual_node or enemy.node
+        visual.setZ(abs(wave) * 0.025 if moving else 0)
+        visual.setP((wave * 1.8) if moving else 0)
+
+        head_pitch = 18.0 if snapping else (-18.0 if tucked else wave * 2.0)
+        if enemy.head_node:
+            enemy.head_node.setP(head_pitch)
+        if enemy.left_foot_node:
+            enemy.left_foot_node.setP(wave * 14.0 if moving else 0)
+        if enemy.right_foot_node:
+            enemy.right_foot_node.setP(-wave * 14.0 if moving else 0)
+        if enemy.tail_node:
+            enemy.tail_node.setH(wave * 5.0)
+
+    def _update_wisp(self, enemy: SceneEnemy, player_pos: Vec3, enemy_pos: Vec3, dt: float):
+        to_player = player_pos - enemy_pos
+        to_player.setZ(0)
+        distance = to_player.length()
+        flat = Vec3(to_player)
+        if distance > 0.05:
+            flat.normalize()
+            enemy.node.setH(math.degrees(math.atan2(-flat.getX(), flat.getY())))
+
+        hover_h = 1.15
+        if enemy.ai_state == "telegraph":
+            enemy.state_timer -= dt
+            if enemy.flash_time == 0.0:
+                enemy.node.setColorScale(0.55, 0.95, 1.35, 1)
+            self._animate_wisp(enemy, dt, "telegraph")
+            if enemy.state_timer <= 0.0:
+                enemy.ai_state = "blink"
+                enemy.state_timer = 0.24
+                enemy.attack_landed = False
+                enemy.lunge_direction = Vec3(flat) if flat.length() else Vec3(0, 1, 0)
+                if enemy.flash_time == 0.0:
+                    enemy.node.setColorScale(1, 1, 1, 1)
+            return
+
+        if enemy.ai_state == "blink":
+            enemy.state_timer -= dt
+            enemy_pos = self._clamp_enemy_position(
+                enemy, enemy_pos + enemy.lunge_direction * 10.5 * dt
+            )
+            enemy.node.setPos(enemy_pos)
+            enemy.node.setZ(hover_h + math.sin(enemy.state_timer * 30.0) * 0.22)
+            self._animate_wisp(enemy, dt, "blink")
+
+            if not enemy.attack_landed and (player_pos - enemy_pos).length() < 1.25:
+                enemy.attack_landed = True
+                enemy.attack_cooldown = 1.35
+                if self._player_is_invulnerable():
+                    self._log(f"You roll through {enemy.name}'s spark.")
+                else:
+                    self._damage_player_from_enemy(enemy, "zaps you")
+
+            if enemy.state_timer <= 0.0:
+                enemy.ai_state = "hover"
+                self._release_attack_token(enemy)
+            return
+
+        enemy.state_timer -= dt
+        sideways = Vec3(-flat.getY(), flat.getX(), 0) if flat.length() else Vec3(1, 0, 0)
+        if distance > 4.0:
+            step = flat * enemy.speed * dt
+        elif distance < 2.8:
+            step = flat * -enemy.speed * 0.75 * dt
+        else:
+            step = sideways * enemy.speed * 0.7 * dt
+        enemy_pos = self._clamp_enemy_position(enemy, enemy_pos + step)
+        enemy.node.setPos(enemy_pos)
+        enemy.node.setZ(hover_h + math.sin(enemy.animation_phase * 1.2) * 0.2)
+        self._animate_wisp(enemy, dt, "hover")
+
+        if distance < 5.0 and enemy.attack_cooldown == 0.0 and self._acquire_attack_token(enemy):
+            enemy.ai_state = "telegraph"
+            enemy.state_timer = 0.42
+
+    def _animate_wisp(self, enemy: SceneEnemy, dt: float, state: str):
+        enemy.animation_phase += dt * (12.0 if state == "blink" else 5.5)
+        wave = math.sin(enemy.animation_phase)
+        visual = enemy.visual_node or enemy.node
+        pulse = 1.0 + (0.14 if state == "telegraph" else 0.08) * wave
+        visual.setScale(pulse, pulse, 1.0 + abs(wave) * 0.12)
+        visual.setR(wave * 8.0)
+        if enemy.left_detail_node:
+            enemy.left_detail_node.setH(enemy.animation_phase * 50.0)
+        if enemy.right_detail_node:
+            enemy.right_detail_node.setH(-enemy.animation_phase * 58.0)
+        if enemy.tail_node:
+            enemy.tail_node.setP(-12.0 + wave * 10.0)
 
     def _update_rabbit(self, enemy: SceneEnemy, player_pos: Vec3, enemy_pos: Vec3, dt: float):
         to_player = player_pos - enemy_pos
@@ -3661,52 +4064,72 @@ class SwordfishGame(ShowBase):
             return
 
         self._start_swing()
-        target = self._nearest_enemy_in_range()
-        if target is None:
-            self._log(f"{self.current_weapon.name} cuts only air.")
+        targets = self._enemies_in_attack_range()
+        if not targets:
+            if is_ranged_weapon(self.current_weapon):
+                self._log(f"{self.current_weapon.name} fires into empty air.")
+            else:
+                self._log(f"{self.current_weapon.name} cuts only air.")
             self.attack_cooldown = 0.45
             return
 
-        enemy_state = EnemyState(
-            name=target.name,
-            kind=target.kind,
-            hp=target.hp,
-            max_hp=target.max_hp,
-        )
-        result = resolve_attack(self.current_weapon, enemy_state, self.rng)
-        target.hp = result.enemy_hp_after
-        self.player_hp = min(self.player_max_hp, self.player_hp + result.healing)
-        self.player_hp = max(0, self.player_hp - result.self_damage)
+        if len(targets) > 1:
+            if is_ranged_weapon(self.current_weapon):
+                self._log(f"{self.current_weapon.name} arcs through {len(targets)} enemies.")
+            else:
+                self._log(f"{self.current_weapon.name} cleaves through {len(targets)} enemies.")
 
-        for message in result.messages[-3:]:
-            self._log(message)
+        any_revealed = False
+        for target in targets:
+            if target not in self.enemies:
+                continue
 
-        newly_revealed = discover_traits(self.current_weapon, result.discovered_traits)
-        for trait_name in newly_revealed:
-            self._log(f"Discovered weapon trait: {trait_name}.")
-        if newly_revealed:
+            enemy_state = EnemyState(
+                name=target.name,
+                kind=target.kind,
+                hp=target.hp,
+                max_hp=target.max_hp,
+            )
+            result = resolve_attack(self.current_weapon, enemy_state, self.rng)
+            target.hp = result.enemy_hp_after
+            self.player_hp = min(self.player_max_hp, self.player_hp + result.healing)
+            self.player_hp = max(0, self.player_hp - result.self_damage)
+
+            for message in result.messages[-2:]:
+                self._log(message)
+
+            newly_revealed = discover_traits(self.current_weapon, result.discovered_traits)
+            for trait_name in newly_revealed:
+                self._log(f"Discovered weapon power: {trait_name}.")
+            any_revealed = any_revealed or bool(newly_revealed)
+
+            if result.healing:
+                self._log(f"You recover {result.healing} health.")
+            if result.self_damage:
+                self._pause_hp_regen()
+                self._log(f"The weapon hurts you for {result.self_damage}.")
+            if self.player_hp == 0:
+                self._start_death_sequence()
+
+            self._apply_hit_feedback(target)
+
+            if result.defeated:
+                reward = gold_reward_for_enemy(target.kind)
+                if reward:
+                    self.gold += reward
+                    self._spawn_gold_reward_effect(target.node.getPos(), reward)
+                    self._log(f"You collect {reward} gold coins.")
+                if target.kind == "rabbit":
+                    self._spawn_rabbit_defeat_effects(target)
+                target.node.removeNode()
+                self.enemies.remove(target)
+
+            if self.player_hp == 0:
+                break
+
+        if any_revealed:
             self._update_inspection_ui()
             self._log("Press I to inspect the updated weapon card.")
-
-        if result.healing:
-            self._log(f"You recover {result.healing} health.")
-        if result.self_damage:
-            self._log(f"The weapon hurts you for {result.self_damage}.")
-        if self.player_hp == 0:
-            self._start_death_sequence()
-
-        self._apply_hit_feedback(target)
-
-        if result.defeated:
-            reward = gold_reward_for_enemy(target.kind)
-            if reward:
-                self.gold += reward
-                self._spawn_gold_reward_effect(target.node.getPos(), reward)
-                self._log(f"You collect {reward} gold coins.")
-            if target.kind == "rabbit":
-                self._spawn_rabbit_defeat_effects(target)
-            target.node.removeNode()
-            self.enemies.remove(target)
 
         self.attack_cooldown = 0.85
 
@@ -3882,6 +4305,8 @@ class SwordfishGame(ShowBase):
             effect.node.removeNode()
         self.hit_effects.clear()
         self.player_hp = self.player_max_hp
+        self.hp_regen_cooldown = 0.0
+        self.hp_regen_timer = 0.0
         self.player.setPos(0, 3.0, 0)
         self.player.setHpr(0, 0, 0)
         self.player.setColorScale(1, 1, 1, 1)
@@ -4118,6 +4543,81 @@ class SwordfishGame(ShowBase):
             home_pos=Vec3(pos),
         )
 
+    def _make_snapper(self, number: int, pos: Vec3) -> SceneEnemy:
+        root = self.render.attachNewNode(f"snapper-{number}")
+        make_box(root, "snapper-shadow", (1.2, 0.95, 0.03), (0.02, 0.025, 0.02, 0.28), (0, 0, 0.035))
+        visual = root.attachNewNode("snapper-visual")
+        shell = make_ellipsoid(visual, "snapper-shell", (0.52, 0.68, 0.32), (0.16, 0.32, 0.22, 1), (0, 0, 0.46), segments=12, rings=6)
+        make_box(visual, "snapper-shell-ridge", (0.12, 0.92, 0.12), (0.08, 0.18, 0.12, 1), (0, 0, 0.78))
+        make_box(visual, "snapper-shell-band", (0.86, 0.08, 0.08), (0.08, 0.18, 0.12, 1), (0, 0.14, 0.72))
+        head = visual.attachNewNode("snapper-head-pivot")
+        head.setPos(0, 0.62, 0.4)
+        make_ellipsoid(head, "snapper-head", (0.28, 0.26, 0.22), (0.24, 0.44, 0.28, 1), segments=10, rings=5)
+        make_box(head, "snapper-jaw", (0.3, 0.16, 0.08), (0.16, 0.3, 0.18, 1), (0, 0.22, -0.08))
+        make_box(head, "snapper-eye-left", (0.06, 0.04, 0.06), (1.0, 0.92, 0.28, 1), (-0.11, 0.19, 0.06))
+        make_box(head, "snapper-eye-right", (0.06, 0.04, 0.06), (1.0, 0.92, 0.28, 1), (0.11, 0.19, 0.06))
+        left_foot = visual.attachNewNode("snapper-left-foot-pivot")
+        left_foot.setPos(-0.38, 0.2, 0.24)
+        make_box(left_foot, "snapper-left-foot", (0.22, 0.26, 0.1), (0.18, 0.36, 0.22, 1), (0, 0, 0))
+        right_foot = visual.attachNewNode("snapper-right-foot-pivot")
+        right_foot.setPos(0.38, 0.2, 0.24)
+        make_box(right_foot, "snapper-right-foot", (0.22, 0.26, 0.1), (0.18, 0.36, 0.22, 1), (0, 0, 0))
+        tail = visual.attachNewNode("snapper-tail-pivot")
+        tail.setPos(0, -0.62, 0.38)
+        make_ellipsoid(tail, "snapper-tail", (0.16, 0.24, 0.08), (0.18, 0.36, 0.22, 1), (0, -0.1, 0), segments=7, rings=4)
+        root.setPos(pos)
+        return SceneEnemy(
+            name="Moss Snapper",
+            kind="snapper",
+            hp=28,
+            max_hp=28,
+            node=root,
+            speed=1.35,
+            contact_damage=4,
+            visual_node=visual,
+            body_node=shell,
+            head_node=head,
+            left_foot_node=left_foot,
+            right_foot_node=right_foot,
+            tail_node=tail,
+            animation_phase=self.rng.uniform(0.0, math.pi * 2.0),
+            ai_state="stalk",
+            bounds=WORLD_FIELD_BOUNDS,
+            home_pos=Vec3(pos),
+        )
+
+    def _make_wisp(self, number: int, pos: Vec3) -> SceneEnemy:
+        root = self.render.attachNewNode(f"wisp-{number}")
+        make_box(root, "wisp-shadow", (0.8, 0.8, 0.03), (0.02, 0.025, 0.02, 0.18), (0, 0, 0.035))
+        visual = root.attachNewNode("wisp-visual")
+        glow = make_ellipsoid(visual, "wisp-glow", (0.3, 0.3, 0.42), (0.32, 0.86, 1.0, 0.72), (0, 0, 0.65), segments=10, rings=5)
+        core = make_ellipsoid(visual, "wisp-core", (0.16, 0.16, 0.24), (0.82, 0.98, 1.0, 0.9), (0, 0, 0.65), segments=8, rings=4)
+        ring_a = make_box(visual, "wisp-ring-a", (0.78, 0.05, 0.05), (0.54, 0.9, 1.0, 0.52), (0, 0, 0.65), (0, 0, 22))
+        ring_b = make_box(visual, "wisp-ring-b", (0.05, 0.78, 0.05), (0.54, 0.9, 1.0, 0.52), (0, 0, 0.65), (0, 0, -22))
+        tail = visual.attachNewNode("wisp-tail-pivot")
+        tail.setPos(0, -0.18, 0.3)
+        make_ellipsoid(tail, "wisp-tail", (0.12, 0.2, 0.28), (0.22, 0.68, 1.0, 0.46), (0, -0.06, 0), segments=7, rings=4)
+        root.setPos(pos)
+        root.setZ(1.15)
+        return SceneEnemy(
+            name="Lantern Wisp",
+            kind="wisp",
+            hp=16,
+            max_hp=16,
+            node=root,
+            speed=2.7,
+            contact_damage=4,
+            visual_node=visual,
+            body_node=core,
+            left_detail_node=ring_a,
+            right_detail_node=ring_b,
+            tail_node=tail,
+            animation_phase=self.rng.uniform(0.0, math.pi * 2.0),
+            ai_state="hover",
+            bounds=WORLD_FIELD_BOUNDS,
+            home_pos=Vec3(pos),
+        )
+
     def _make_boss(self) -> SceneEnemy:
         pos = Vec3(BOSS_ARENA_CENTER.getX(), BOSS_ARENA_CENTER.getY(), 0)
         root = self.render.attachNewNode("boss")
@@ -4206,23 +4706,54 @@ class SwordfishGame(ShowBase):
             self.enemies.append(self._make_boar(index + 1, self._random_field_position()))
         self._log(f"{count} bramble boars root through the far field.")
 
+    def spawn_snappers(self, count: int = 2):
+        for index in range(count):
+            self.enemies.append(self._make_snapper(index + 1, self._random_field_position()))
+        self._log(f"{count} moss snappers crawl from the wet brush.")
+
+    def spawn_wisps(self, count: int = 2):
+        for index in range(count):
+            self.enemies.append(self._make_wisp(index + 1, self._random_field_position()))
+        self._log(f"{count} lantern wisps flicker between the trees.")
+
     def _spawn_field_mobs(self):
         self.spawn_birds(3)
         self.spawn_boars(2)
+        self.spawn_snappers(2)
+        self.spawn_wisps(2)
 
-    def _nearest_enemy_in_range(self) -> Optional[SceneEnemy]:
+    def _enemies_in_attack_range(self) -> List[SceneEnemy]:
         player_pos = self.player.getPos()
+        attack_range = ATTACK_RANGE
+        is_ranged = self.current_weapon is not None and is_ranged_weapon(self.current_weapon)
+        if is_ranged:
+            attack_range = RANGED_ATTACK_RANGE
+            heading = math.radians(self.player.getH())
+            forward = Vec3(-math.sin(heading), math.cos(heading), 0)
         nearby: List[Tuple[float, SceneEnemy]] = []
         for enemy in self.enemies:
-            distance = (enemy.node.getPos() - player_pos).length()
-            if distance <= ATTACK_RANGE:
+            to_enemy = enemy.node.getPos() - player_pos
+            to_enemy.setZ(0)
+            distance = to_enemy.length()
+            if is_ranged and distance > 0.01:
+                aim = Vec3(to_enemy)
+                aim.normalize()
+                if forward.dot(aim) < RANGED_ATTACK_CONE_DOT:
+                    continue
+            if distance <= attack_range:
                 nearby.append((distance, enemy))
 
-        if not nearby:
-            return None
-
         nearby.sort(key=lambda item: item[0])
-        return nearby[0][1]
+        enemies = [enemy for _distance, enemy in nearby]
+        if is_ranged and self.current_weapon.weapon_type in {"bow", "crossbow"}:
+            return enemies[:1]
+        if is_ranged and self.current_weapon.weapon_type == "staff":
+            return enemies[:3]
+        return enemies
+
+    def _nearest_enemy_in_range(self) -> Optional[SceneEnemy]:
+        targets = self._enemies_in_attack_range()
+        return targets[0] if targets else None
 
     def _update_ui(self):
         rod = fishing_rod_for_tier(self.rod_tier)
@@ -4245,6 +4776,7 @@ class SwordfishGame(ShowBase):
                 f"Type: {self.current_weapon.weapon_type}  "
                 f"Rarity: {self.current_weapon.rarity}  "
                 f"Damage: {self.current_weapon.base_damage}\n"
+                f"Ability: {ability_summary(self.current_weapon)}\n"
                 f"Traits: {trait_summary(self.current_weapon)}"
             )
         self.weapon_text.setText(weapon_lines)
@@ -4409,6 +4941,16 @@ class SwordfishGame(ShowBase):
         for wrapped_line in textwrap.wrap(self._weapon_signature(weapon), width=34):
             lines.append(f"  {wrapped_line}")
 
+        ability = weapon_ability(weapon)
+        lines.extend(["", "Ability:"])
+        if ability.key in weapon.discovered:
+            lines.append(f"  {ability.display_name}")
+            for wrapped_line in textwrap.wrap(ability.description, width=32):
+                lines.append(f"  {wrapped_line}")
+        else:
+            lines.append("  ???")
+            lines.append("  Try the weapon in combat.")
+
         lines.extend(
             [
                 "",
@@ -4436,6 +4978,9 @@ class SwordfishGame(ShowBase):
             "rapier": "A needle-thin noble weapon with a star-glint at the point.",
             "spear": "A lake-spear with a tiny battle banner tied below the ancient tip.",
             "cleaver": "A broad chopping blade with a dark notch and a hungry old rune.",
+            "staff": "A crooked mage staff with a bright lake-star trapped above the prongs.",
+            "bow": "A curved old war bow with a glowing string and a patient arrow.",
+            "crossbow": "A compact relic crossbow built around one heavy rune-bolt.",
         }
 
         return signatures.get(

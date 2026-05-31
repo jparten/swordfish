@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import random
 from typing import Optional, Tuple
 
-from .weapons import Weapon
+from .weapons import Weapon, weapon_ability
 
 
 GOLD_REWARDS = {
@@ -14,6 +14,8 @@ GOLD_REWARDS = {
     "monster": 15,
     "bird": 8,
     "boar": 20,
+    "snapper": 12,
+    "wisp": 10,
     "boss": 50,
 }
 
@@ -59,6 +61,84 @@ def resolve_attack(
     healing = 0
     discovered = []
     messages = [f"{weapon.name} hits {enemy.name}."]
+    ability = weapon_ability(weapon)
+
+    if ability.key == "mooncut":
+        damage += 2
+        discovered.append(ability.key)
+        messages.append("Mooncut draws a bright second slash.")
+    elif ability.key == "finisher":
+        discovered.append(ability.key)
+        if enemy.hp <= enemy.max_hp / 2:
+            damage += 6
+            messages.append("Finisher Chop bites into the wounded target.")
+        else:
+            damage += 1
+            messages.append("Finisher Chop thuds, waiting for a weaker foe.")
+    elif ability.key == "banner_pierce":
+        discovered.append(ability.key)
+        if enemy.kind in {"bird", "wisp"}:
+            damage += 5
+            messages.append("Banner Pierce skewers the airborne target.")
+        else:
+            damage += 2
+            messages.append("Banner Pierce jabs from extra reach.")
+    elif ability.key == "sweeping_edge":
+        discovered.append(ability.key)
+        damage += 2
+        if enemy.kind == "rabbit":
+            damage += 2
+            messages.append("Sweeping Edge catches the small target cleanly.")
+        else:
+            messages.append("Sweeping Edge carves a wide arc.")
+    elif ability.key == "armor_crack":
+        discovered.append(ability.key)
+        if enemy.kind in {"boar", "snapper", "monster", "boss"}:
+            damage += 5
+            messages.append("Armor Crack bites into a tough hide.")
+        else:
+            damage += 2
+            messages.append("Armor Crack lands with a heavy thunk.")
+    elif ability.key == "needle_crit":
+        discovered.append(ability.key)
+        damage += 1
+        if rng.random() <= 0.35:
+            damage += 6
+            messages.append("Needle Crit finds a perfect opening.")
+        else:
+            messages.append("Needle Crit adds a precise little stab.")
+    elif ability.key == "thunder_knock":
+        discovered.append(ability.key)
+        damage += 3
+        if enemy.max_hp >= 25:
+            damage += 2
+            messages.append("Thunder Knock shakes the sturdy enemy.")
+        else:
+            messages.append("Thunder Knock booms on impact.")
+    elif ability.key == "star_bolt":
+        discovered.append(ability.key)
+        damage += 3
+        if enemy.kind == "wisp":
+            damage += 4
+            messages.append("Star Bolt burns bright through the floating magic.")
+        else:
+            messages.append("Star Bolt leaps from the staff.")
+    elif ability.key == "thornshot":
+        discovered.append(ability.key)
+        damage += 2
+        if enemy.kind in {"rabbit", "bird", "wisp"}:
+            damage += 3
+            messages.append("Thornshot catches the quick target.")
+        else:
+            messages.append("Thornshot whistles into the target.")
+    elif ability.key == "boltbreaker":
+        discovered.append(ability.key)
+        damage += 4
+        if enemy.max_hp >= 25:
+            damage += 3
+            messages.append("Boltbreaker punches into the sturdy enemy.")
+        else:
+            messages.append("Boltbreaker fires with a heavy snap.")
 
     for enchantment in weapon.enchantments:
         key = enchantment.key

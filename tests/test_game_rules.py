@@ -13,12 +13,15 @@ from swordfish.weapons import (
     FISHING_RODS,
     WEAPON_TYPE_BY_NOUN,
     Weapon,
+    ability_summary,
     discover_traits,
     fishing_rod_for_tier,
     generate_weapon,
+    is_ranged_weapon,
     next_fishing_rod,
     rarity_weights_for_rod,
     trait_summary,
+    weapon_ability,
 )
 
 
@@ -43,6 +46,23 @@ class WeaponGenerationTests(unittest.TestCase):
         self.assertGreaterEqual(len(weapon.enchantments), 1)
         self.assertLessEqual(len(weapon.enchantments), 3)
         self.assertIn(weapon.weapon_type, set(WEAPON_TYPE_BY_NOUN.values()))
+        self.assertIsNotNone(weapon.ability)
+        self.assertEqual(weapon_ability(weapon), weapon.ability)
+
+    def test_ranged_weapon_types_are_valid(self):
+        ranged_types = {"staff", "bow", "crossbow"}
+
+        self.assertTrue(ranged_types.issubset(set(WEAPON_TYPE_BY_NOUN.values())))
+        for weapon_type in ranged_types:
+            weapon = Weapon(
+                name=f"Test {weapon_type}",
+                rarity="strange",
+                base_damage=6,
+                enchantments=(),
+                weapon_type=weapon_type,
+            )
+            self.assertTrue(is_ranged_weapon(weapon))
+            self.assertIsNotNone(weapon_ability(weapon))
 
     def test_better_rods_shift_rarity_toward_relics(self):
         starter_weights = dict(rarity_weights_for_rod(0))
@@ -78,6 +98,14 @@ class WeaponGenerationTests(unittest.TestCase):
         discover_traits(weapon, ["flame"])
         self.assertEqual(trait_summary(weapon), "Cinderwake, ???")
 
+    def test_ability_summary_hides_until_discovered(self):
+        weapon = generate_weapon(random.Random(12))
+        ability = weapon_ability(weapon)
+
+        self.assertEqual(ability_summary(weapon), "???")
+        discover_traits(weapon, [ability.key])
+        self.assertEqual(ability_summary(weapon), ability.display_name)
+
 
 class CombatRuleTests(unittest.TestCase):
     def test_rabbit_bane_reveals_only_against_rabbits(self):
@@ -99,9 +127,9 @@ class CombatRuleTests(unittest.TestCase):
             random.Random(1),
         )
 
-        self.assertEqual(monster_result.damage_dealt, 5)
+        self.assertEqual(monster_result.damage_dealt, 7)
         self.assertNotIn("rabbit_bane", monster_result.discovered_traits)
-        self.assertEqual(rabbit_result.damage_dealt, 12)
+        self.assertEqual(rabbit_result.damage_dealt, 14)
         self.assertIn("rabbit_bane", rabbit_result.discovered_traits)
 
     def test_curse_deals_extra_damage_and_self_damage(self):
@@ -118,9 +146,45 @@ class CombatRuleTests(unittest.TestCase):
             random.Random(1),
         )
 
-        self.assertEqual(result.damage_dealt, 10)
+        self.assertEqual(result.damage_dealt, 12)
         self.assertEqual(result.self_damage, 2)
         self.assertIn("curse", result.discovered_traits)
+
+    def test_weapon_ability_reveals_on_attack(self):
+        weapon = Weapon(
+            name="Test Rapier",
+            rarity="strange",
+            base_damage=5,
+            enchantments=(),
+            weapon_type="rapier",
+        )
+
+        result = resolve_attack(
+            weapon,
+            EnemyState(name="Rabbit", kind="rabbit", hp=20, max_hp=20),
+            random.Random(2),
+        )
+
+        self.assertIn("needle_crit", result.discovered_traits)
+        self.assertGreaterEqual(result.damage_dealt, 6)
+
+    def test_ranged_weapon_ability_adds_damage(self):
+        weapon = Weapon(
+            name="Test Staff",
+            rarity="strange",
+            base_damage=5,
+            enchantments=(),
+            weapon_type="staff",
+        )
+
+        result = resolve_attack(
+            weapon,
+            EnemyState(name="Lantern Wisp", kind="wisp", hp=20, max_hp=20),
+            random.Random(2),
+        )
+
+        self.assertEqual(result.damage_dealt, 12)
+        self.assertIn("star_bolt", result.discovered_traits)
 
     def test_gold_rewards_match_enemy_type(self):
         self.assertEqual(gold_reward_for_enemy("rabbit"), 5)
