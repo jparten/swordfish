@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import builtins
 from dataclasses import dataclass, field
 import math
+from pathlib import Path
 import random
 import textwrap
 from typing import List, Optional, Tuple
@@ -45,24 +47,50 @@ from .weapons import (
 )
 
 
-WORLD_LIMIT = 64.0
-FOREST_EDGE = 69.0
-FOREST_GROUND = 220.0
+WORLD_LIMIT = 220.0
+FOREST_EDGE = 228.0
+FOREST_GROUND = 680.0
 WORLD_FIELD_BOUNDS = (-WORLD_LIMIT + 2.0, WORLD_LIMIT - 2.0, -WORLD_LIMIT + 2.0, WORLD_LIMIT - 2.0)
+MOB_RESPAWN_INTERVAL = 240.0
+FIELD_MOB_TARGETS = {
+    "rabbit": 4,
+    "bird": 5,
+    "boar": 4,
+    "snapper": 3,
+    "wisp": 3,
+}
 PLAYER_SPEED = 7.0
+SPRINT_SPEED_MULTIPLIER = 1.55
+SPRINT_STAMINA_DRAIN = 24.0
+SPRINT_MIN_STAMINA = 8.0
+SPRINT_DUST_INTERVAL = 0.14
 HP_REGEN_DELAY = 4.0
 HP_REGEN_INTERVAL = 1.2
 HP_REGEN_AMOUNT = 1
 DODGE_SPEED = 20.0
 DODGE_DURATION = 0.22
 DODGE_COOLDOWN = 0.75
+DODGE_STAMINA_COST = 25
+ABILITY_STAMINA_COST = 35
+STAMINA_REGEN_DELAY = 0.55
+STAMINA_REGEN_RATE = 24.0
 ENEMY_TURN_GAP = 0.6
 ENEMY_TURN_MAX_HOLD = 1.6
 ENEMY_WAIT_DISTANCE = 2.3
 LEASH_RANGE = 22.0
 ATTACK_RANGE = 2.6
 RANGED_ATTACK_RANGE = 10.0
-RANGED_ATTACK_CONE_DOT = 0.12
+RANGED_ATTACK_CONE_DOT = 0.92
+WEAPON_ABILITY_COOLDOWN = 6.0
+ACTIVE_MELEE_RANGE = 5.4
+ACTIVE_RANGED_RANGE = 14.0
+ACTIVE_DAMAGE_BONUS = 8
+PET_FOLLOW_DISTANCE = 1.65
+PET_SPEED = 5.2
+PET_SENSE_RANGE = 5.2
+PET_ATTACK_RANGE = 1.35
+PET_ATTACK_DAMAGE = 2
+PET_ATTACK_COOLDOWN = 2.25
 FISHING_RANGE = 4.5
 SHOP_RANGE = 3.0
 CHEST_RANGE = 2.5
@@ -70,6 +98,21 @@ CHEST_GUARD_RADIUS = 4.8
 SHOP_SPOT = Vec3(-10.4, 1.7, 0)
 FORGE_SPOT = Vec3(6.5, 4.5, 0)
 FORGE_RANGE = 3.0
+CAVE_POOL_SPOT = Vec3(-31.5, -36.2, 0)
+CAVE_POOL_CENTER = Vec3(-32.4, -38.4, 0)
+CAVE_BOUNDS = (-42.0, -21.0, -47.5, -27.0)
+HOME_RAFT_SPOT = Vec3(2.7, 6.7, 0)
+LEVEL2_RAFT_SPOT = Vec3(145.0, -103.0, 0)
+LEVEL2_ARRIVAL_SPOT = Vec3(145.0, -99.0, 0)
+LEVEL2_LAKE_SPOT = Vec3(166.0, -135.0, 0)
+LEVEL2_LAKE_CENTER = Vec3(168.0, -141.0, 0)
+LEVEL2_ZONE_BOUNDS = (126.0, 208.0, -190.0, -88.0)
+LEVEL2_EMBER_BOUNDS = (130.0, 170.0, -188.0, -150.0)
+LEVEL2_MOON_BOUNDS = (168.0, 208.0, -132.0, -92.0)
+FROST_BIOME_CENTER = Vec3(78.0, 76.0, 0)
+FROST_BIOME_BOUNDS = (42.0, 114.0, 36.0, 112.0)
+SUNKEN_MEADOW_CENTER = Vec3(-92.0, 72.0, 0)
+SUNKEN_MEADOW_BOUNDS = (-120.0, -66.0, 42.0, 104.0)
 BOSS_ARENA_CENTER = Vec3(-38, 38, 0)
 BOSS_ARENA_RADIUS = 7.0
 ARENA_MIN_X = -8.2
@@ -81,9 +124,59 @@ WATER_BLOBS = (
     (0.0, 9.7, 12.2, 6.3),
     (-8.2, 9.5, 4.3, 3.7),
     (8.4, 10.2, 4.0, 3.3),
+    (168.0, -141.0, 15.5, 10.5),
 )
 DOCK_SAFE_ZONE = (-1.9, 1.9, 2.4, 6.9)
 DEFAULT_WEAPON_COLOR = (0.74, 0.78, 0.78, 1)
+CEL_INK_ENABLED = False
+CEL_INK_COLOR = (0.025, 0.02, 0.018, 1)
+CEL_INK_THICKNESS = 2.0
+IMPORTED_PLAYER_BASE_HPR = (180.0, 90.0, 0.0)
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+QUATERNIUS_NATURE_ASSET_DIR = PROJECT_ROOT / "assets" / "models" / "Ultimate Nature Pack by Quaternius" / "OBJ"
+QUATERNIUS_KNIGHT_ASSET_DIR = PROJECT_ROOT / "assets" / "models" / "Knight Character Animated by Quaternius" / "OBJ"
+QUATERNIUS_WEAPON_ASSET_DIR = PROJECT_ROOT / "assets" / "models" / "Medieval Weapons Pack by Quaternius" / "OBJ"
+ASSET_MODEL_CACHE = {}
+COMMON_TREE_MODELS = (
+    "CommonTree_1",
+    "CommonTree_2",
+    "CommonTree_3",
+    "CommonTree_4",
+    "CommonTree_5",
+    "BirchTree_1",
+    "BirchTree_2",
+    "BirchTree_3",
+    "BirchTree_4",
+    "BirchTree_5",
+)
+TWISTED_TREE_MODELS = (
+    "Willow_1",
+    "Willow_2",
+    "Willow_3",
+    "Willow_4",
+    "Willow_5",
+    "CommonTree_Dead_1",
+    "CommonTree_Dead_2",
+    "CommonTree_Dead_3",
+)
+PINE_TREE_MODELS = ("PineTree_1", "PineTree_2", "PineTree_3", "PineTree_4", "PineTree_5")
+SNOW_TREE_MODELS = (
+    "PineTree_Snow_1",
+    "PineTree_Snow_2",
+    "PineTree_Snow_3",
+    "CommonTree_Snow_1",
+    "CommonTree_Snow_2",
+)
+WEAPON_ASSET_BY_TYPE = {
+    "saber": "Sword",
+    "falchion": "Sword_Big",
+    "axe": "Axe",
+    "mace": "Hammer_Double",
+    "rapier": "Sword_2",
+    "spear": "Spear",
+    "cleaver": "Claymore",
+    "bow": "Bow_Wooden",
+}
 ENCHANTMENT_GLOW_COLORS = {
     "flame": (1.0, 0.35, 0.08, 0.62),
     "frost": (0.45, 0.82, 1.0, 0.55),
@@ -148,6 +241,17 @@ class HitEffect:
 
 
 @dataclass
+class RangedShot:
+    node: object
+    velocity: Vec3
+    lifetime: float
+    max_lifetime: float
+    spin_rate: Vec3
+    impact_pos: Vec3
+    impact_color: Tuple[float, float, float, float]
+
+
+@dataclass
 class AnimatedDetail:
     node: object
     base_pos: Vec3
@@ -156,6 +260,44 @@ class AnimatedDetail:
     bob_amount: float
     sway_amount: float
     color: Tuple[float, float, float, float]
+
+
+def _should_add_ink(color: Tuple[float, float, float, float], size_hint: Tuple[float, ...]) -> bool:
+    if not CEL_INK_ENABLED:
+        return False
+    if color[3] < 0.95:
+        return False
+    if max(size_hint) < 0.16:
+        return False
+    return True
+
+
+def _add_ink_wire(
+    parent,
+    name: str,
+    geom: Geom,
+    color: Tuple[float, float, float, float],
+    size_hint: Tuple[float, ...],
+    pos: Tuple[float, float, float],
+    hpr: Tuple[float, float, float],
+    scale: Optional[Tuple[float, float, float]] = None,
+):
+    if not _should_add_ink(color, size_hint):
+        return
+
+    ink_node = GeomNode(f"{name}-ink")
+    ink_node.addGeom(geom)
+    ink = parent.attachNewNode(ink_node)
+    if scale is not None:
+        ink.setScale(*scale)
+    ink.setPos(*pos)
+    ink.setHpr(*hpr)
+    ink.setColor(*CEL_INK_COLOR)
+    ink.setRenderModeWireframe()
+    ink.setRenderModeThickness(CEL_INK_THICKNESS)
+    ink.setDepthOffset(-1)
+    ink.setLightOff(1)
+    ink.setTwoSided(True)
 
 
 def make_box(
@@ -209,6 +351,7 @@ def make_box(
     if color[3] < 1.0:
         node_path.setTransparency(TransparencyAttrib.MAlpha)
 
+    _add_ink_wire(parent, name, geom, color, size, pos, hpr, size)
     return node_path
 
 
@@ -264,6 +407,7 @@ def make_ellipsoid(
     node_path.setTwoSided(True)
     if color[3] < 1.0:
         node_path.setTransparency(TransparencyAttrib.MAlpha)
+    _add_ink_wire(parent, name, geom, color, radius, pos, hpr)
     return node_path
 
 
@@ -324,6 +468,7 @@ def make_cylinder(
     node_path.setTwoSided(True)
     if color[3] < 1.0:
         node_path.setTransparency(TransparencyAttrib.MAlpha)
+    _add_ink_wire(parent, name, geom, color, (radius_x, radius_y, height), pos, hpr)
     return node_path
 
 
@@ -440,6 +585,9 @@ def make_flat_prism(
     node_path.setTwoSided(True)
     if color[3] < 1.0:
         node_path.setTransparency(TransparencyAttrib.MAlpha)
+    width = max(x for x, _y in points) - min(x for x, _y in points)
+    height = max(y for _x, y in points) - min(y for _x, y in points)
+    _add_ink_wire(parent, name, geom, color, (width, height, thickness), pos, hpr)
     return node_path
 
 
@@ -454,9 +602,130 @@ def weapon_glow_color(weapon: Optional[Weapon]) -> Tuple[float, float, float, fl
     return DEFAULT_WEAPON_COLOR
 
 
+def _tree_asset_name(name: str) -> str:
+    stable_index = sum(ord(char) for char in name)
+    if "snow" in name or "frost" in name:
+        models = SNOW_TREE_MODELS
+    elif "treasure" in name or stable_index % 7 == 0:
+        models = TWISTED_TREE_MODELS
+    elif "border" in name and stable_index % 3 == 0:
+        models = PINE_TREE_MODELS
+    else:
+        models = COMMON_TREE_MODELS
+    return models[stable_index % len(models)]
+
+
+def _tree_asset_scale(asset_name: str, scale: float) -> float:
+    if asset_name.startswith("Willow"):
+        return 0.72 * scale
+    if "Dead" in asset_name:
+        return 0.78 * scale
+    if asset_name.startswith("PineTree"):
+        return 0.7 * scale
+    return 0.76 * scale
+
+
+def _load_obj_asset(asset_dir: Path, asset_name: str):
+    cache_key = (str(asset_dir), asset_name)
+    if cache_key in ASSET_MODEL_CACHE:
+        return ASSET_MODEL_CACHE[cache_key]
+    loader = getattr(builtins, "loader", None)
+    if loader is None:
+        return None
+
+    model_path = asset_dir / f"{asset_name}.obj"
+    if not model_path.exists():
+        ASSET_MODEL_CACHE[cache_key] = None
+        return None
+
+    try:
+        model = loader.loadModel(str(model_path))
+    except OSError:
+        ASSET_MODEL_CACHE[cache_key] = None
+        return None
+    if model.isEmpty():
+        ASSET_MODEL_CACHE[cache_key] = None
+        return None
+
+    ASSET_MODEL_CACHE[cache_key] = model
+    return model
+
+
+def _load_tree_asset(asset_name: str):
+    return _load_obj_asset(QUATERNIUS_NATURE_ASSET_DIR, asset_name)
+
+
+def _copy_imported_model(
+    parent,
+    name: str,
+    asset_dir: Path,
+    asset_name: str,
+    scale: float,
+    pos: Tuple[float, float, float] = (0.0, 0.0, 0.0),
+    hpr: Tuple[float, float, float] = (0.0, 0.0, 0.0),
+    color_scale: Optional[Tuple[float, float, float, float]] = None,
+    ink: bool = True,
+):
+    template = _load_obj_asset(asset_dir, asset_name)
+    if template is None:
+        return None
+
+    root = parent.attachNewNode(name)
+    root.setPos(*pos)
+    root.setHpr(*hpr)
+    root.setScale(scale)
+    model = template.copyTo(root)
+    model.setTwoSided(True)
+    if color_scale is not None:
+        model.setColorScale(*color_scale)
+
+    if ink and CEL_INK_ENABLED:
+        ink_model = template.copyTo(root)
+        ink_model.setTwoSided(True)
+        ink_model.setColor(*CEL_INK_COLOR)
+        ink_model.setColorScale(*CEL_INK_COLOR)
+        ink_model.setRenderModeWireframe()
+        ink_model.setRenderModeThickness(CEL_INK_THICKNESS)
+        ink_model.setDepthOffset(-2)
+        ink_model.setLightOff(1)
+    return root
+
+
 def make_tree(parent, name: str, pos: Tuple[float, float, float], scale: float = 1.0):
     root = parent.attachNewNode(name)
     root.setPos(*pos)
+    root.setH((sum(ord(char) for char in name) * 13) % 360)
+    asset_name = _tree_asset_name(name)
+    asset_template = _load_tree_asset(asset_name)
+    if asset_template is not None:
+        make_box(
+            root,
+            "tree-shadow",
+            (1.4 * scale, 0.92 * scale, 0.035),
+            (0.02, 0.04, 0.02, 0.28),
+            (0.08 * scale, -0.04 * scale, 0.01),
+            (0, 0, 12),
+        )
+        tree = asset_template.copyTo(root)
+        asset_scale = _tree_asset_scale(asset_name, scale)
+        tree.setScale(asset_scale)
+        tree.setP(90)
+        tree.setZ(0.08 * scale)
+        tree.setTwoSided(True)
+        if CEL_INK_ENABLED:
+            tree_ink = asset_template.copyTo(root)
+            tree_ink.setScale(asset_scale)
+            tree_ink.setP(90)
+            tree_ink.setZ(0.08 * scale)
+            tree_ink.setTwoSided(True)
+            tree_ink.setColor(*CEL_INK_COLOR)
+            tree_ink.setColorScale(*CEL_INK_COLOR)
+            tree_ink.setRenderModeWireframe()
+            tree_ink.setRenderModeThickness(1.35)
+            tree_ink.setDepthOffset(-2)
+            tree_ink.setLightOff(1)
+        return root
+
     make_box(
         root,
         "tree-shadow",
@@ -513,7 +782,11 @@ class SwordfishGame(ShowBase):
 
         self.rng = random.Random()
         self.keys = {"w": False, "a": False, "s": False, "d": False}
+        self.sprint_held = False
         self.fishing_spot = Vec3(0, 7.0, 0)
+        self.cave_fishing_spot = Vec3(CAVE_POOL_SPOT)
+        self.level2_fishing_spot = Vec3(LEVEL2_LAKE_SPOT)
+        self.active_fishing_spot_name = "lake"
         self.fishing_state = "idle"
         self.fishing_timer = 0.0
         self.fishing_phase = 0.0
@@ -532,10 +805,14 @@ class SwordfishGame(ShowBase):
         self.player_max_hp = 50
         self.hp_regen_cooldown = 0.0
         self.hp_regen_timer = 0.0
+        self.player_stamina = 100.0
+        self.player_max_stamina = 100.0
+        self.stamina_regen_cooldown = 0.0
         self.death_timer = 0.0
         self.death_duration = 2.25
         self.is_death_sequence = False
         self.attack_cooldown = 0.0
+        self.weapon_ability_cooldown = 0.0
         self.dodge_time = 0.0
         self.dodge_cooldown = 0.0
         self.dodge_direction = Vec3(0, 1, 0)
@@ -544,22 +821,38 @@ class SwordfishGame(ShowBase):
         self.attack_token_holder: Optional[SceneEnemy] = None
         self.attack_token_cooldown = 0.0
         self.attack_token_timer = 0.0
+        self.mob_respawn_timer = MOB_RESPAWN_INTERVAL
         self.chests: List[SceneChest] = []
         self.hit_effects: List[HitEffect] = []
+        self.ranged_shots: List[RangedShot] = []
         self.animated_details: List[AnimatedDetail] = []
         self.log_lines: List[str] = []
         self.swing_time = 0.0
         self.swing_duration = 0.34
+        self.swing_is_powered = False
+        self.swing_style = "horizontal"
+        self.next_swing_vertical = False
         self.swing_spark_timer = 0.0
         self.swing_sparked = False
         self.walk_time = 0.0
         self.is_player_moving = False
+        self.is_sprinting = False
+        self.sprint_dust_timer = 0.0
         self.left_arm = None
         self.right_arm = None
         self.left_leg = None
         self.right_leg = None
         self.weapon_pivot = None
         self.weapon_root = None
+        self.player_visual_model = None
+        self.pet = None
+        self.pet_visual = None
+        self.pet_head = None
+        self.pet_tail = None
+        self.pet_left_foot = None
+        self.pet_right_foot = None
+        self.pet_attack_cooldown = 0.0
+        self.pet_walk_time = 0.0
         self.slash_root = None
         self.slash_parts = []
         self.slash_part_base_positions = []
@@ -572,6 +865,10 @@ class SwordfishGame(ShowBase):
         self.inspect_preview_root = None
         self.inspect_preview_model = None
         self.inspect_preview_weapon = None
+        self.health_bar_fill = None
+        self.health_bar_text = None
+        self.stamina_bar_fill = None
+        self.stamina_bar_text = None
         self.shop_open = False
         self.shop_frame = None
         self.shop_title = None
@@ -587,6 +884,7 @@ class SwordfishGame(ShowBase):
         self._bind_controls()
         self._build_world()
         self._build_player()
+        self._build_pet()
         self._build_lights()
         self._build_ui()
         self.spawn_rabbits(4)
@@ -605,15 +903,22 @@ class SwordfishGame(ShowBase):
         self.accept("e", self.handle_interact)
         self.accept("i", self.toggle_inspection)
         self.accept("space", self.attack)
-        self.accept("shift", self.dodge)
-        self.accept("r", self.reset_arena)
+        self.accept("q", self.use_weapon_ability)
+        self.accept("shift", self._set_sprint, [True])
+        self.accept("shift-up", self._set_sprint, [False])
+        self.accept("control", self.dodge)
+        self.accept("lcontrol", self.dodge)
+        self.accept("rcontrol", self.dodge)
         self.accept("m", self.spawn_monster)
-        for index in range(1, 5):
+        for index in range(1, 8):
             self.accept(str(index), self._select_menu_item, [index - 1])
         self.accept("escape", self.userExit)
 
     def _set_key(self, key: str, value: bool):
         self.keys[key] = value
+
+    def _set_sprint(self, value: bool):
+        self.sprint_held = value
 
     def _build_world(self):
         make_box(
@@ -763,13 +1068,6 @@ class SwordfishGame(ShowBase):
             (0.45, 0.28, 0.14, 1),
             (0, 4.8, 0.03),
         )
-        make_box(
-            self.render,
-            "fishing-marker",
-            (0.6, 0.6, 1.6),
-            (0.72, 0.86, 1.0, 1),
-            (0, 5.8, 0.75),
-        )
         for index, (x, y, height, lean) in enumerate(
             (
                 (-7.0, 6.0, 1.2, -10),
@@ -830,6 +1128,11 @@ class SwordfishGame(ShowBase):
         self._build_world_details()
         self._build_treasure_map()
         self._build_field_chests()
+        self._build_cave_area()
+        self._build_frost_biome()
+        self._build_sunken_meadow_biome()
+        self._build_level2_zone()
+        self._build_extra_nature()
 
         fence_color = (0.36, 0.27, 0.18, 1)
         make_box(self.render, "arena-back", (18, 0.35, 0.55), fence_color, (0, -14, 0.2))
@@ -991,11 +1294,24 @@ class SwordfishGame(ShowBase):
         # Scatter trees and shrubs across the open field, skipping the central
         # region that already holds the lake, arena, shop, and treasure clearing.
         def in_central_keep_clear(px: float, py: float) -> bool:
-            return -32.0 < px < 36.0 and -40.0 < py < 22.0
+            in_hub = -32.0 < px < 36.0 and -40.0 < py < 22.0
+            in_frost = (
+                FROST_BIOME_BOUNDS[0] - 5.0 < px < FROST_BIOME_BOUNDS[1] + 5.0
+                and FROST_BIOME_BOUNDS[2] - 5.0 < py < FROST_BIOME_BOUNDS[3] + 5.0
+            )
+            in_sunken_meadow = (
+                SUNKEN_MEADOW_BOUNDS[0] - 5.0 < px < SUNKEN_MEADOW_BOUNDS[1] + 5.0
+                and SUNKEN_MEADOW_BOUNDS[2] - 5.0 < py < SUNKEN_MEADOW_BOUNDS[3] + 5.0
+            )
+            in_level2 = (
+                LEVEL2_ZONE_BOUNDS[0] - 8.0 < px < LEVEL2_ZONE_BOUNDS[1] + 8.0
+                and LEVEL2_ZONE_BOUNDS[2] - 8.0 < py < LEVEL2_ZONE_BOUNDS[3] + 8.0
+            )
+            return in_hub or in_frost or in_sunken_meadow or in_level2
 
         scatter_limit = edge - 4.0
         tree_index = 0
-        for _ in range(280):
+        for _ in range(520):
             x = rng.uniform(-scatter_limit, scatter_limit)
             y = rng.uniform(-scatter_limit, scatter_limit)
             if in_central_keep_clear(x, y):
@@ -1007,7 +1323,7 @@ class SwordfishGame(ShowBase):
             tree_index += 1
 
         shrub_index = 0
-        for _ in range(240):
+        for _ in range(420):
             x = rng.uniform(-scatter_limit, scatter_limit)
             y = rng.uniform(-scatter_limit, scatter_limit)
             if in_central_keep_clear(x, y):
@@ -1209,6 +1525,14 @@ class SwordfishGame(ShowBase):
             ("Overgrown Chest", Vec3(-44, -50, 0), 16, "rabbit"),
             ("Hollow Stump Cache", Vec3(46, -46, 0), 20, "mixed"),
             ("Forgotten Hoard", Vec3(-50, -10, 0), 28, "monster"),
+            ("Far North Cache", Vec3(-72, 70, 0), 34, "wisp"),
+            ("Old Ranger Chest", Vec3(80, -72, 0), 38, "bird"),
+            ("Southern Root Hoard", Vec3(-76, -74, 0), 40, "boar"),
+            ("Eastern Moss Lockbox", Vec3(78, 12, 0), 32, "snapper"),
+            ("Far Western Lockbox", Vec3(-112, -18, 0), 44, "rabbit"),
+            ("Northwatch Chest", Vec3(16, 116, 0), 48, "wisp"),
+            ("Long Road Cache", Vec3(112, -104, 0), 52, "boar"),
+            ("Old Orchard Chest", Vec3(-116, 116, 0), 56, "bird"),
         )
         for index, (name, pos, reward, guard_kind) in enumerate(field_chest_specs):
             chest_index = 10 + index
@@ -1221,6 +1545,492 @@ class SwordfishGame(ShowBase):
             chest = self._make_chest(chest_index, name, pos, reward, guard_kind, bounds)
             self.chests.append(chest)
             self._spawn_chest_guards(chest_index, pos, guard_kind, bounds=bounds)
+
+    def _build_cave_area(self):
+        rng = random.Random(260534)
+        path_color = (0.22, 0.19, 0.17, 1)
+        cave_floor = (0.075, 0.085, 0.088, 1)
+        dark_rock = (0.06, 0.065, 0.07, 1)
+        rock = (0.18, 0.18, 0.18, 1)
+        glow_blue = (0.2, 0.75, 1.0, 0.58)
+
+        make_flat_blob(
+            self.render,
+            "cave-path",
+            (-23.5, -29.8, -0.004),
+            7.0,
+            1.35,
+            path_color,
+            points=18,
+            wobble=0.2,
+            rotation_degrees=-35,
+            seed=610,
+        )
+        make_flat_blob(
+            self.render,
+            "cave-floor",
+            (-31.6, -37.0, -0.003),
+            11.2,
+            9.0,
+            cave_floor,
+            points=30,
+            wobble=0.24,
+            rotation_degrees=12,
+            seed=611,
+        )
+        make_flat_blob(
+            self.render,
+            "cave-pool-bank",
+            (CAVE_POOL_CENTER.getX(), CAVE_POOL_CENTER.getY(), -0.001),
+            5.6,
+            3.6,
+            (0.12, 0.11, 0.1, 1),
+            points=22,
+            wobble=0.22,
+            rotation_degrees=-8,
+            seed=612,
+        )
+        make_flat_blob(
+            self.render,
+            "cave-fishing-pool",
+            (CAVE_POOL_CENTER.getX(), CAVE_POOL_CENTER.getY(), 0.025),
+            4.5,
+            2.75,
+            (0.02, 0.2, 0.34, 0.82),
+            points=28,
+            wobble=0.18,
+            rotation_degrees=-8,
+            seed=613,
+        )
+        make_flat_blob(
+            self.render,
+            "cave-pool-glow",
+            (CAVE_POOL_CENTER.getX(), CAVE_POOL_CENTER.getY(), 0.06),
+            3.2,
+            1.7,
+            (0.24, 0.76, 1.0, 0.3),
+            points=20,
+            wobble=0.12,
+            rotation_degrees=-10,
+            seed=614,
+        )
+
+        for index, (x, y, sx, sy, height) in enumerate(
+            (
+                (-41.0, -32.5, 1.8, 1.2, 2.0),
+                (-39.2, -42.8, 2.0, 1.1, 2.2),
+                (-33.0, -47.0, 2.4, 1.1, 1.9),
+                (-24.2, -44.2, 1.8, 1.3, 2.1),
+                (-22.4, -35.0, 1.6, 1.4, 1.8),
+                (-28.2, -28.0, 2.2, 1.0, 2.0),
+            )
+        ):
+            make_box(
+                self.render,
+                f"cave-wall-rock-{index}",
+                (sx, sy, height),
+                dark_rock if index % 2 else rock,
+                (x, y, height / 2),
+                (0, 0, rng.uniform(-18, 18)),
+            )
+
+        make_box(self.render, "cave-mouth-left", (1.2, 1.1, 2.7), dark_rock, (-37.8, -30.4, 1.35), (0, 0, -12))
+        make_box(self.render, "cave-mouth-right", (1.2, 1.1, 2.7), dark_rock, (-33.2, -30.1, 1.35), (0, 0, 10))
+        make_box(self.render, "cave-mouth-top", (5.4, 1.0, 1.2), dark_rock, (-35.5, -30.0, 2.65), (0, 0, 2))
+        make_box(self.render, "cave-mouth-dark", (3.4, 0.28, 1.8), (0.005, 0.006, 0.008, 1), (-35.5, -29.58, 1.18))
+
+        for index, (x, y, h, color) in enumerate(
+            (
+                (-35.8, -35.4, 0.8, glow_blue),
+                (-28.4, -39.8, 1.0, (0.42, 0.95, 0.68, 0.52)),
+                (-38.2, -40.5, 0.7, (0.72, 0.55, 1.0, 0.5)),
+                (-25.6, -32.4, 0.75, glow_blue),
+            )
+        ):
+            crystal = make_box(
+                self.render,
+                f"cave-crystal-{index}",
+                (0.24, 0.24, h),
+                color,
+                (x, y, h / 2),
+                (0, 0, rng.uniform(0, 45)),
+            )
+            self._add_animated_detail(crystal, bob_amount=0.025, sway_amount=0.0, speed=1.9, phase=index)
+
+        for index in range(18):
+            x = rng.uniform(CAVE_BOUNDS[0], CAVE_BOUNDS[1])
+            y = rng.uniform(CAVE_BOUNDS[2], CAVE_BOUNDS[3])
+            if (Vec3(x, y, 0) - CAVE_POOL_CENTER).length() < 4.8:
+                continue
+            make_box(
+                self.render,
+                f"cave-small-rock-{index}",
+                (rng.uniform(0.18, 0.5), rng.uniform(0.16, 0.44), rng.uniform(0.12, 0.32)),
+                rng.choice((rock, dark_rock, (0.12, 0.13, 0.13, 1))),
+                (x, y, 0.09),
+                (0, 0, rng.uniform(0, 360)),
+            )
+
+        cave_chests = (
+            ("Crystal Cave Chest", Vec3(-37.0, -36.2, 0), 30, "wisp"),
+            ("Deep Pool Cache", Vec3(-28.0, -42.0, 0), 34, "snapper"),
+            ("Buried Cave Hoard", Vec3(-24.8, -34.0, 0), 42, "mixed"),
+        )
+        for index, (name, pos, reward, guard_kind) in enumerate(cave_chests):
+            chest_index = 30 + index
+            chest = self._make_chest(chest_index, name, pos, reward, guard_kind, CAVE_BOUNDS)
+            self.chests.append(chest)
+            self._spawn_chest_guards(chest_index, pos, guard_kind, bounds=CAVE_BOUNDS)
+
+    def _build_frost_biome(self):
+        rng = random.Random(260535)
+        path_color = (0.28, 0.31, 0.3, 1)
+        snow = (0.72, 0.83, 0.86, 1)
+        blue_snow = (0.55, 0.73, 0.82, 1)
+        ice = (0.42, 0.72, 0.92, 0.62)
+        dark_ice = (0.14, 0.28, 0.38, 0.72)
+        dead_wood = (0.2, 0.18, 0.16, 1)
+
+        for index, (x, y, sx, sy, rotation) in enumerate(
+            (
+                (29.0, 25.5, 8.4, 1.25, 38),
+                (39.0, 34.0, 8.8, 1.25, 42),
+                (49.0, 43.5, 9.2, 1.35, 45),
+                (58.5, 53.0, 9.0, 1.35, 44),
+                (70.0, 64.0, 10.0, 1.35, 42),
+                (84.0, 77.0, 9.4, 1.3, 38),
+            )
+        ):
+            make_flat_blob(
+                self.render,
+                f"frost-road-{index}",
+                (x, y, -0.007),
+                sx,
+                sy,
+                path_color,
+                points=18,
+                wobble=0.18,
+                rotation_degrees=rotation,
+                seed=700 + index,
+            )
+
+        make_flat_blob(
+            self.render,
+            "frost-biome-snowfield",
+            (FROST_BIOME_CENTER.getX(), FROST_BIOME_CENTER.getY(), -0.006),
+            36.0,
+            38.0,
+            snow,
+            points=34,
+            wobble=0.24,
+            rotation_degrees=-8,
+            seed=710,
+        )
+        make_flat_blob(
+            self.render,
+            "frost-biome-blue-shadow",
+            (FROST_BIOME_CENTER.getX(), FROST_BIOME_CENTER.getY(), -0.002),
+            26.5,
+            24.0,
+            blue_snow,
+            points=28,
+            wobble=0.22,
+            rotation_degrees=12,
+            seed=711,
+        )
+        make_flat_blob(
+            self.render,
+            "frost-ice-pond",
+            (86.0, 82.5, 0.025),
+            10.8,
+            6.4,
+            ice,
+            points=28,
+            wobble=0.18,
+            rotation_degrees=-18,
+            seed=712,
+        )
+        make_flat_blob(
+            self.render,
+            "frost-deep-ice",
+            (87.0, 82.8, 0.04),
+            6.5,
+            3.3,
+            dark_ice,
+            points=20,
+            wobble=0.12,
+            rotation_degrees=-18,
+            seed=713,
+        )
+
+        for index, (x, y, sx, sy, rotation) in enumerate(
+            (
+                (53.0, 50.0, 4.0, 2.0, -18),
+                (60.5, 70.5, 5.4, 2.4, 22),
+                (78.0, 56.5, 4.7, 2.0, -12),
+                (81.5, 73.0, 4.5, 2.3, 18),
+                (96.0, 91.0, 6.2, 2.6, -8),
+                (54.0, 94.0, 5.6, 2.4, 26),
+                (102.0, 54.0, 5.2, 2.2, -16),
+            )
+        ):
+            make_flat_blob(
+                self.render,
+                f"frost-snow-drift-{index}",
+                (x, y, 0.01),
+                sx,
+                sy,
+                (0.86, 0.92, 0.9, 0.76),
+                points=16,
+                wobble=0.2,
+                rotation_degrees=rotation,
+                seed=720 + index,
+            )
+
+        for index, (x, y, height, color) in enumerate(
+            (
+                (58.2, 59.0, 1.2, (0.44, 0.9, 1.0, 0.56)),
+                (63.2, 74.5, 1.65, (0.62, 0.98, 1.0, 0.6)),
+                (74.4, 60.0, 1.35, (0.42, 0.72, 1.0, 0.58)),
+                (80.0, 69.5, 1.1, (0.72, 0.9, 1.0, 0.52)),
+                (55.0, 68.0, 0.9, (0.5, 0.78, 1.0, 0.5)),
+            )
+        ):
+            crystal = make_box(
+                self.render,
+                f"frost-crystal-{index}",
+                (0.32, 0.32, height),
+                color,
+                (x, y, height / 2),
+                (0, 0, rng.uniform(0, 45)),
+            )
+            make_box(
+                self.render,
+                f"frost-crystal-tip-{index}",
+                (0.2, 0.2, 0.28),
+                color,
+                (x, y, height + 0.1),
+                (0, 0, rng.uniform(0, 45)),
+            )
+            self._add_animated_detail(crystal, bob_amount=0.018, sway_amount=0.0, speed=1.3, phase=index)
+
+        for index, (x, y, scale, lean) in enumerate(
+            (
+                (50.0, 55.0, 0.95, -15),
+                (55.5, 78.0, 1.1, 18),
+                (67.0, 47.0, 0.85, -8),
+                (84.0, 61.0, 1.0, 14),
+                (79.0, 80.0, 0.9, -18),
+                (46.5, 69.0, 0.82, 10),
+            )
+        ):
+            root = self.render.attachNewNode(f"frost-dead-tree-{index}")
+            root.setPos(x, y, 0)
+            root.setH(rng.uniform(-18, 18))
+            make_box(root, "trunk", (0.24 * scale, 0.24 * scale, 2.4 * scale), dead_wood, (0, 0, 1.2 * scale), (lean, 0, 0))
+            make_box(root, "branch-a", (0.16 * scale, 1.25 * scale, 0.14 * scale), dead_wood, (0.42 * scale, 0.2 * scale, 1.65 * scale), (0, 0, 36))
+            make_box(root, "branch-b", (0.14 * scale, 1.0 * scale, 0.12 * scale), dead_wood, (-0.36 * scale, -0.1 * scale, 1.95 * scale), (0, 0, -42))
+            make_box(root, "snow-cap", (0.48 * scale, 0.36 * scale, 0.08 * scale), (0.9, 0.94, 0.9, 1), (0, 0, 2.42 * scale), (0, 0, rng.uniform(-12, 12)))
+
+        for index in range(44):
+            x = rng.uniform(FROST_BIOME_BOUNDS[0], FROST_BIOME_BOUNDS[1])
+            y = rng.uniform(FROST_BIOME_BOUNDS[2], FROST_BIOME_BOUNDS[3])
+            if (Vec3(x, y, 0) - Vec3(86.0, 82.5, 0)).length() < 8.2:
+                continue
+            make_box(
+                self.render,
+                f"frost-tuft-{index}",
+                (rng.uniform(0.08, 0.18), rng.uniform(0.08, 0.18), rng.uniform(0.22, 0.55)),
+                rng.choice(((0.38, 0.54, 0.48, 1), (0.48, 0.62, 0.62, 1), (0.78, 0.84, 0.78, 1))),
+                (x, y, 0.16),
+                (0, rng.uniform(-16, 16), rng.uniform(0, 360)),
+            )
+
+        make_box(self.render, "frost-sign-post", (0.12, 0.12, 1.15), dead_wood, (44.5, 39.5, 0.58), (0, 0, 20))
+        make_box(self.render, "frost-sign-board", (1.35, 0.12, 0.42), (0.34, 0.28, 0.22, 1), (44.8, 39.9, 1.12), (0, 0, 20))
+        make_box(self.render, "frost-sign-snow", (1.45, 0.14, 0.08), (0.88, 0.94, 0.92, 1), (44.8, 39.9, 1.36), (0, 0, 20))
+
+        frost_chests = (
+            ("Frozen Wayfarer Chest", Vec3(58.0, 57.0, 0), 36, "wisp"),
+            ("Icebound Hunter Cache", Vec3(76.0, 63.5, 0), 44, "boar"),
+            ("Aurora Hoard", Vec3(70.5, 77.0, 0), 58, "mixed"),
+        )
+        for index, (name, pos, reward, guard_kind) in enumerate(frost_chests):
+            chest_index = 50 + index
+            chest = self._make_chest(chest_index, name, pos, reward, guard_kind, FROST_BIOME_BOUNDS)
+            self.chests.append(chest)
+            self._spawn_chest_guards(chest_index, pos, guard_kind, bounds=FROST_BIOME_BOUNDS)
+
+    def _build_sunken_meadow_biome(self):
+        rng = random.Random(260537)
+        meadow = (0.2, 0.34, 0.13, 1)
+        wet_grass = (0.09, 0.27, 0.15, 1)
+        flower_gold = (0.96, 0.72, 0.24, 1)
+        moss = (0.12, 0.42, 0.2, 1)
+        old_stone = (0.34, 0.35, 0.3, 1)
+        water = (0.05, 0.28, 0.3, 0.62)
+        dark_water = (0.03, 0.14, 0.18, 0.72)
+
+        path_points = (
+            (-34.0, 27.0, 8.2, 1.15, 134),
+            (-46.0, 38.0, 9.0, 1.2, 132),
+            (-60.0, 49.5, 10.0, 1.25, 128),
+            (-74.0, 60.5, 10.5, 1.3, 126),
+            (-88.0, 69.0, 9.5, 1.35, 112),
+        )
+        for index, (x, y, sx, sy, rotation) in enumerate(path_points):
+            make_flat_blob(
+                self.render,
+                f"sunken-meadow-path-{index}",
+                (x, y, -0.006),
+                sx,
+                sy,
+                (0.31, 0.25, 0.14, 1),
+                points=18,
+                wobble=0.17,
+                rotation_degrees=rotation,
+                seed=800 + index,
+            )
+
+        make_flat_blob(
+            self.render,
+            "sunken-meadow-field",
+            (SUNKEN_MEADOW_CENTER.getX(), SUNKEN_MEADOW_CENTER.getY(), -0.008),
+            28.5,
+            31.0,
+            meadow,
+            points=38,
+            wobble=0.28,
+            rotation_degrees=10,
+            seed=810,
+        )
+        make_flat_blob(
+            self.render,
+            "sunken-meadow-lowland",
+            (-94.0, 75.0, -0.004),
+            20.0,
+            18.5,
+            wet_grass,
+            points=30,
+            wobble=0.27,
+            rotation_degrees=-12,
+            seed=811,
+        )
+
+        for index, (x, y, sx, sy, rotation) in enumerate(
+            (
+                (-105.0, 62.0, 5.0, 2.4, -18),
+                (-91.0, 82.0, 6.4, 3.0, 20),
+                (-78.0, 67.0, 4.7, 2.5, 8),
+            )
+        ):
+            make_flat_blob(
+                self.render,
+                f"sunken-meadow-pool-{index}",
+                (x, y, 0.02),
+                sx,
+                sy,
+                water,
+                points=24,
+                wobble=0.2,
+                rotation_degrees=rotation,
+                seed=820 + index,
+            )
+            make_flat_blob(
+                self.render,
+                f"sunken-meadow-pool-depth-{index}",
+                (x + 0.3, y - 0.2, 0.04),
+                sx * 0.55,
+                sy * 0.5,
+                dark_water,
+                points=18,
+                wobble=0.14,
+                rotation_degrees=rotation,
+                seed=830 + index,
+            )
+
+        for index, (x, y, scale) in enumerate(
+            (
+                (-116.0, 51.0, 1.1),
+                (-110.0, 74.0, 0.92),
+                (-103.0, 96.0, 1.15),
+                (-92.0, 46.0, 1.0),
+                (-82.0, 101.0, 0.96),
+                (-71.0, 55.0, 1.08),
+                (-68.0, 87.0, 0.9),
+                (-98.0, 58.0, 0.82),
+                (-84.0, 78.0, 0.88),
+            )
+        ):
+            tree = make_tree(self.render, f"sunken-meadow-willow-{index}", (x, y, 0), scale)
+            tree.setH(rng.uniform(-35, 35))
+
+        for index in range(80):
+            x = rng.uniform(SUNKEN_MEADOW_BOUNDS[0] + 2.0, SUNKEN_MEADOW_BOUNDS[1] - 2.0)
+            y = rng.uniform(SUNKEN_MEADOW_BOUNDS[2] + 2.0, SUNKEN_MEADOW_BOUNDS[3] - 2.0)
+            height = rng.uniform(0.18, 0.54)
+            color = rng.choice((moss, (0.16, 0.48, 0.18, 1), (0.18, 0.36, 0.1, 1)))
+            make_box(
+                self.render,
+                f"sunken-meadow-tuft-{index}",
+                (rng.uniform(0.04, 0.08), rng.uniform(0.05, 0.11), height),
+                color,
+                (x, y, height / 2),
+                (0, rng.uniform(-18, 18), rng.uniform(0, 360)),
+            )
+            if index % 4 == 0:
+                make_box(
+                    self.render,
+                    f"sunken-meadow-flower-{index}",
+                    (0.14, 0.14, 0.08),
+                    rng.choice((flower_gold, (0.82, 0.45, 0.88, 1), (0.72, 0.86, 0.95, 1))),
+                    (x, y, height + 0.04),
+                    (0, 0, rng.uniform(0, 360)),
+                )
+
+        for index, (x, y, h) in enumerate(
+            (
+                (-101.5, 72.0, 1.8),
+                (-98.0, 72.4, 1.25),
+                (-94.5, 72.2, 1.6),
+                (-91.0, 71.8, 1.05),
+                (-87.5, 72.1, 1.4),
+            )
+        ):
+            make_box(self.render, f"sunken-ruin-pillar-{index}", (0.55, 0.55, h), old_stone, (x, y, h / 2), (0, 0, rng.uniform(-8, 8)))
+            make_box(self.render, f"sunken-ruin-moss-{index}", (0.6, 0.16, 0.08), moss, (x, y - 0.22, h + 0.04), (0, 0, rng.uniform(-8, 8)))
+
+        for index in range(12):
+            firefly = self.render.attachNewNode(f"sunken-meadow-firefly-{index}")
+            firefly.setPos(
+                rng.uniform(SUNKEN_MEADOW_BOUNDS[0] + 8.0, SUNKEN_MEADOW_BOUNDS[1] - 8.0),
+                rng.uniform(SUNKEN_MEADOW_BOUNDS[2] + 8.0, SUNKEN_MEADOW_BOUNDS[3] - 8.0),
+                rng.uniform(0.72, 1.65),
+            )
+            glow = make_box(firefly, "glow", (0.14, 0.14, 0.14), (1.0, 0.85, 0.34, 0.58), (0, 0, 0))
+            self._add_animated_detail(
+                firefly,
+                bob_amount=rng.uniform(0.1, 0.24),
+                sway_amount=rng.uniform(6.0, 13.0),
+                speed=rng.uniform(1.0, 1.9),
+                phase=rng.uniform(0, math.pi * 2),
+            )
+            self._add_animated_detail(glow, bob_amount=0.0, sway_amount=0.0, speed=3.2, phase=index)
+
+        make_box(self.render, "sunken-meadow-sign-post", (0.12, 0.12, 1.2), (0.24, 0.14, 0.06, 1), (-65.5, 45.5, 0.6), (0, 0, -20))
+        make_box(self.render, "sunken-meadow-sign-board", (1.5, 0.12, 0.42), (0.36, 0.22, 0.1, 1), (-65.8, 45.8, 1.08), (0, 0, -20))
+        make_box(self.render, "sunken-meadow-sign-flower", (0.18, 0.04, 0.18), flower_gold, (-66.22, 45.68, 1.12), (0, 0, -20))
+
+        meadow_chests = (
+            ("Sunken Meadow Chest", Vec3(-103.5, 69.5, 0), 46, "snapper"),
+            ("Goldpetal Cache", Vec3(-80.0, 87.5, 0), 52, "bird"),
+            ("Moss-Crowned Hoard", Vec3(-111.0, 91.0, 0), 64, "mixed"),
+        )
+        for index, (name, pos, reward, guard_kind) in enumerate(meadow_chests):
+            chest_index = 70 + index
+            chest = self._make_chest(chest_index, name, pos, reward, guard_kind, SUNKEN_MEADOW_BOUNDS)
+            self.chests.append(chest)
+            self._spawn_chest_guards(chest_index, pos, guard_kind, bounds=SUNKEN_MEADOW_BOUNDS)
 
     def _make_chest(
         self,
@@ -1257,6 +2067,12 @@ class SwordfishGame(ShowBase):
             "monster": (Vec3(-1.5, 1.0, 0), Vec3(1.5, -1.0, 0), Vec3(0.0, 2.2, 0)),
             "boar": (Vec3(-2.0, 0.0, 0), Vec3(2.0, 0.0, 0)),
             "bird": (Vec3(-1.6, -0.8, 0), Vec3(1.6, 0.8, 0)),
+            "snapper": (Vec3(-1.8, -0.7, 0), Vec3(1.8, 0.7, 0)),
+            "wisp": (Vec3(-1.7, 0.9, 0), Vec3(1.7, -0.9, 0), Vec3(0.0, 1.9, 0)),
+            "level2_mixed": (Vec3(-2.2, 1.0, 0), Vec3(2.2, -1.0, 0), Vec3(0.0, 2.5, 0)),
+            "level2_boar": (Vec3(-2.2, 0.8, 0), Vec3(2.2, -0.8, 0), Vec3(0.0, 2.5, 0)),
+            "level2_wisp": (Vec3(-2.0, 1.0, 0), Vec3(2.0, -1.0, 0), Vec3(0.0, 2.3, 0)),
+            "level2_snapper": (Vec3(-2.0, -0.9, 0), Vec3(2.0, 0.9, 0), Vec3(0.0, 2.2, 0)),
         }[guard_kind]
 
         guard_bounds = bounds or TREASURE_MAP_BOUNDS
@@ -1270,10 +2086,65 @@ class SwordfishGame(ShowBase):
                 guard = self._make_boar(100 + chest_index * 10 + guard_index, pos)
             elif guard_kind == "bird":
                 guard = self._make_bird(100 + chest_index * 10 + guard_index, pos)
+            elif guard_kind == "snapper":
+                guard = self._make_snapper(100 + chest_index * 10 + guard_index, pos)
+            elif guard_kind == "wisp":
+                guard = self._make_wisp(100 + chest_index * 10 + guard_index, pos)
+            elif guard_kind.startswith("level2"):
+                guard = self._make_level2_guard(guard_kind, 100 + chest_index * 10 + guard_index, pos, guard_index)
             else:
                 guard = self._make_rabbit(100 + chest_index * 10 + guard_index, pos)
             guard.bounds = guard_bounds
             self.enemies.append(guard)
+
+    def _make_level2_guard(self, guard_kind: str, number: int, pos: Vec3, guard_index: int) -> SceneEnemy:
+        if guard_kind == "level2_boar":
+            enemy = self._make_boar(number, pos)
+        elif guard_kind == "level2_wisp":
+            enemy = self._make_wisp(number, pos)
+        elif guard_kind == "level2_snapper":
+            enemy = self._make_snapper(number, pos)
+        elif guard_index == 2:
+            enemy = self._make_monster(pos)
+        elif guard_index == 1:
+            enemy = self._make_boar(number, pos)
+        else:
+            enemy = self._make_snapper(number, pos)
+        return self._toughen_level2_enemy(enemy)
+
+    def _toughen_level2_enemy(self, enemy: SceneEnemy) -> SceneEnemy:
+        enemy.name = f"Level 2 {enemy.name}"
+        enemy.hp = max(enemy.hp + 14, int(enemy.hp * 1.55))
+        enemy.max_hp = enemy.hp
+        enemy.contact_damage += 3
+        enemy.speed *= 1.08
+        enemy.bounds = LEVEL2_ZONE_BOUNDS
+        enemy.home_pos = Vec3(enemy.node.getPos())
+        enemy.node.setScale(enemy.node.getScale() * 1.12)
+        enemy.node.setColorScale(1.12, 0.9, 0.78, 1)
+        return enemy
+
+    def _spawn_level2_patrols(self):
+        specs = (
+            ("boar", Vec3(139.0, -158.0, 0)),
+            ("boar", Vec3(154.0, -181.0, 0)),
+            ("snapper", Vec3(176.0, -151.0, 0)),
+            ("snapper", Vec3(187.0, -139.0, 0)),
+            ("wisp", Vec3(188.0, -108.0, 0)),
+            ("wisp", Vec3(202.0, -121.0, 0)),
+            ("monster", Vec3(163.0, -126.0, 0)),
+            ("monster", Vec3(180.0, -165.0, 0)),
+        )
+        for index, (kind, pos) in enumerate(specs):
+            if kind == "boar":
+                enemy = self._make_boar(900 + index, pos)
+            elif kind == "snapper":
+                enemy = self._make_snapper(900 + index, pos)
+            elif kind == "wisp":
+                enemy = self._make_wisp(900 + index, pos)
+            else:
+                enemy = self._make_monster(pos)
+            self.enemies.append(self._toughen_level2_enemy(enemy))
 
     def _build_world_details(self):
         rng = random.Random(260530)
@@ -1599,6 +2470,380 @@ class SwordfishGame(ShowBase):
             )
             self._add_animated_detail(glow, bob_amount=0.0, sway_amount=0.0, speed=3.5, phase=index)
 
+    def _build_raft(self, name: str, pos: Vec3, heading: float):
+        raft = self.render.attachNewNode(name)
+        raft.setPos(pos)
+        raft.setH(heading)
+        wood = (0.38, 0.22, 0.1, 1)
+        rope = (0.68, 0.54, 0.32, 1)
+        sail = (0.78, 0.72, 0.56, 1)
+        make_box(raft, "raft-shadow", (2.9, 1.75, 0.035), (0.02, 0.018, 0.01, 0.28), (0, 0, 0.035))
+        for index, x in enumerate((-0.9, -0.3, 0.3, 0.9)):
+            make_box(raft, f"log-{index}", (0.42, 1.85, 0.24), wood, (x, 0, 0.18), (0, 0, self.rng.uniform(-2, 2)))
+        make_box(raft, "front-rope", (2.25, 0.08, 0.08), rope, (0, 0.74, 0.34))
+        make_box(raft, "back-rope", (2.25, 0.08, 0.08), rope, (0, -0.74, 0.34))
+        make_box(raft, "mast", (0.12, 0.12, 1.9), (0.22, 0.12, 0.05, 1), (0, 0.08, 1.05))
+        make_box(raft, "small-sail", (0.08, 1.0, 0.86), sail, (0, 0.1, 1.35), (0, 0, 4))
+        lantern = make_box(raft, "raft-lantern", (0.18, 0.18, 0.24), (1.0, 0.72, 0.22, 0.5), (-0.78, 0.58, 0.66))
+        self._add_animated_detail(lantern, bob_amount=0.018, sway_amount=0.0, speed=2.6, phase=heading * 0.1)
+        return raft
+
+    def _build_level2_zone(self):
+        rng = random.Random(260538)
+        old_path = (0.31, 0.24, 0.14, 1)
+        shore = (0.25, 0.24, 0.15, 1)
+        deep_green = (0.08, 0.22, 0.12, 1)
+        ember_ground = (0.24, 0.14, 0.1, 1)
+        ash = (0.18, 0.17, 0.16, 1)
+        moon_grass = (0.12, 0.28, 0.28, 1)
+        moon_blue = (0.28, 0.62, 0.78, 0.62)
+        ruin = (0.32, 0.32, 0.3, 1)
+
+        self._build_raft("home-raft", HOME_RAFT_SPOT, -12)
+        self._build_raft("level2-raft", LEVEL2_RAFT_SPOT, 168)
+
+        make_flat_blob(
+            self.render,
+            "level2-island",
+            (166.0, -139.0, -0.012),
+            43.0,
+            54.0,
+            deep_green,
+            points=42,
+            wobble=0.26,
+            rotation_degrees=-8,
+            seed=900,
+        )
+        make_flat_blob(
+            self.render,
+            "level2-lake-bank",
+            (LEVEL2_LAKE_CENTER.getX(), LEVEL2_LAKE_CENTER.getY(), -0.004),
+            18.0,
+            12.5,
+            shore,
+            points=34,
+            wobble=0.22,
+            rotation_degrees=-12,
+            seed=901,
+        )
+        make_flat_blob(
+            self.render,
+            "level2-ancient-lake",
+            (LEVEL2_LAKE_CENTER.getX(), LEVEL2_LAKE_CENTER.getY(), 0.024),
+            15.5,
+            10.5,
+            (0.04, 0.28, 0.5, 0.82),
+            points=38,
+            wobble=0.18,
+            rotation_degrees=-12,
+            seed=902,
+        )
+        make_flat_blob(
+            self.render,
+            "level2-lake-glow",
+            (LEVEL2_LAKE_CENTER.getX() + 1.2, LEVEL2_LAKE_CENTER.getY() - 0.8, 0.055),
+            8.5,
+            4.8,
+            (0.36, 0.82, 1.0, 0.32),
+            points=24,
+            wobble=0.12,
+            rotation_degrees=-8,
+            seed=903,
+        )
+
+        for index, (x, y, sx, sy, heading) in enumerate(
+            (
+                (148.0, -104.0, 5.8, 1.2, -34),
+                (154.0, -114.0, 8.0, 1.25, -50),
+                (160.5, -126.0, 8.2, 1.25, -62),
+                (164.5, -153.0, 9.0, 1.35, -82),
+                (156.0, -171.0, 10.0, 1.35, -128),
+                (180.0, -128.0, 10.0, 1.2, 32),
+                (190.0, -113.0, 8.5, 1.2, 42),
+            )
+        ):
+            make_flat_blob(
+                self.render,
+                f"level2-path-{index}",
+                (x, y, -0.003),
+                sx,
+                sy,
+                old_path,
+                points=18,
+                wobble=0.16,
+                rotation_degrees=heading,
+                seed=910 + index,
+            )
+
+        make_flat_blob(
+            self.render,
+            "level2-ember-grove",
+            (148.0, -169.0, -0.002),
+            20.0,
+            18.0,
+            ember_ground,
+            points=28,
+            wobble=0.25,
+            rotation_degrees=14,
+            seed=930,
+        )
+        make_flat_blob(
+            self.render,
+            "level2-ash-bed",
+            (146.0, -174.0, 0.002),
+            11.0,
+            8.0,
+            ash,
+            points=22,
+            wobble=0.22,
+            rotation_degrees=-4,
+            seed=931,
+        )
+        for index, (x, y, scale) in enumerate(
+            ((132, -158, 1.0), (137, -183, 1.2), (151, -188, 0.92), (162, -166, 1.08), (145, -152, 0.86))
+        ):
+            root = self.render.attachNewNode(f"ember-tree-{index}")
+            root.setPos(x, y, 0)
+            root.setH(rng.uniform(0, 360))
+            make_box(root, "trunk", (0.28 * scale, 0.28 * scale, 2.2 * scale), (0.13, 0.08, 0.05, 1), (0, 0, 1.1 * scale), (rng.uniform(-8, 8), 0, 0))
+            make_box(root, "ember-canopy-low", (1.25 * scale, 1.0 * scale, 0.72 * scale), (0.48, 0.16, 0.08, 1), (0, 0, 2.25 * scale), (0, 0, rng.uniform(-12, 12)))
+            glow = make_box(root, "ember-canopy-glow", (0.78 * scale, 0.62 * scale, 0.46 * scale), (1.0, 0.42, 0.08, 0.28), (0.18 * scale, 0, 2.35 * scale))
+            self._add_animated_detail(glow, bob_amount=0.014, sway_amount=0.0, speed=2.2, phase=index)
+
+        make_flat_blob(
+            self.render,
+            "level2-moon-marsh",
+            (188.0, -112.0, -0.002),
+            20.0,
+            19.0,
+            moon_grass,
+            points=30,
+            wobble=0.25,
+            rotation_degrees=-18,
+            seed=940,
+        )
+        for index, (x, y, sx, sy) in enumerate(((184, -104, 4.5, 2.8), (197, -118, 5.2, 3.0), (180, -123, 3.9, 2.4))):
+            make_flat_blob(
+                self.render,
+                f"moon-marsh-pool-{index}",
+                (x, y, 0.025),
+                sx,
+                sy,
+                moon_blue,
+                points=22,
+                wobble=0.19,
+                rotation_degrees=rng.uniform(-20, 20),
+                seed=950 + index,
+            )
+        for index in range(34):
+            x = rng.uniform(LEVEL2_MOON_BOUNDS[0], LEVEL2_MOON_BOUNDS[1])
+            y = rng.uniform(LEVEL2_MOON_BOUNDS[2], LEVEL2_MOON_BOUNDS[3])
+            height = rng.uniform(0.25, 0.8)
+            reed = make_box(
+                self.render,
+                f"moon-reed-{index}",
+                (0.055, 0.07, height),
+                rng.choice(((0.16, 0.48, 0.44, 1), (0.22, 0.58, 0.54, 1), (0.42, 0.72, 0.74, 1))),
+                (x, y, height / 2),
+                (0, rng.uniform(-14, 14), rng.uniform(0, 360)),
+            )
+            if index % 6 == 0:
+                self._add_animated_detail(reed, bob_amount=0.01, sway_amount=3.0, speed=1.4, phase=index)
+
+        for index, (x, y, h) in enumerate(((170, -121, 2.2), (174, -119, 1.5), (178, -122, 2.6), (182, -120, 1.7), (186, -123, 2.0))):
+            make_box(self.render, f"level2-ruin-pillar-{index}", (0.55, 0.55, h), ruin, (x, y, h / 2), (0, 0, rng.uniform(-8, 8)))
+            make_box(self.render, f"level2-ruin-cap-{index}", (0.72, 0.72, 0.18), (0.22, 0.22, 0.2, 1), (x, y, h + 0.09))
+        make_box(self.render, "level2-ruin-arch-left", (0.55, 0.55, 2.8), ruin, (158.5, -139.0, 1.4))
+        make_box(self.render, "level2-ruin-arch-right", (0.55, 0.55, 2.8), ruin, (162.2, -139.0, 1.4))
+        make_box(self.render, "level2-ruin-arch-top", (4.2, 0.55, 0.5), ruin, (160.35, -139.0, 2.95))
+        make_box(self.render, "level2-fishing-shack-floor", (3.8, 2.4, 0.16), (0.28, 0.18, 0.08, 1), (158.0, -132.0, 0.05), (0, 0, -10))
+        make_box(self.render, "level2-fishing-shack-wall", (3.5, 0.2, 1.6), (0.34, 0.2, 0.09, 1), (158.0, -131.1, 0.9), (0, 0, -10))
+        make_box(self.render, "level2-fishing-shack-roof", (4.2, 2.8, 0.22), (0.18, 0.09, 0.05, 1), (158.0, -132.0, 1.82), (0, 8, -10))
+        make_box(self.render, "level2-fishing-sign", (1.4, 0.12, 0.4), (0.1, 0.06, 0.03, 1), (156.0, -130.1, 1.45), (0, 0, -10))
+        make_box(self.render, "level2-fishing-sign-glow", (0.8, 0.04, 0.08), (0.42, 0.82, 1.0, 0.68), (156.0, -130.18, 1.46), (0, 0, -10))
+
+        for index, (x, y, color) in enumerate(((166, -134, (0.6, 0.9, 1.0, 0.42)), (172, -145, (0.96, 0.62, 0.2, 0.38)), (160, -147, (0.6, 0.9, 1.0, 0.36)))):
+            shimmer = make_box(self.render, f"level2-lake-shimmer-{index}", (2.4, 0.06, 0.03), color, (x, y, 0.15), (0, 0, rng.uniform(-20, 20)))
+            self._add_animated_detail(shimmer, bob_amount=0.018, sway_amount=5.0, speed=1.2 + index * 0.25, phase=index)
+
+        level2_chests = (
+            ("Level 2 Shore Chest", Vec3(151.0, -121.0, 0), 72, "level2_mixed"),
+            ("Ember Grove Vault", Vec3(143.0, -177.0, 0), 88, "level2_boar"),
+            ("Moon Marsh Reliquary", Vec3(195.0, -111.0, 0), 94, "level2_wisp"),
+            ("Old Ferry Strongbox", Vec3(188.0, -157.0, 0), 105, "level2_snapper"),
+        )
+        for index, (name, pos, reward, guard_kind) in enumerate(level2_chests):
+            chest_index = 90 + index
+            chest = self._make_chest(chest_index, name, pos, reward, guard_kind, LEVEL2_ZONE_BOUNDS)
+            self.chests.append(chest)
+            self._spawn_chest_guards(chest_index, pos, guard_kind, bounds=LEVEL2_ZONE_BOUNDS)
+
+        self._spawn_level2_patrols()
+
+    def _build_extra_nature(self):
+        rng = random.Random(260536)
+        flower_colors = (
+            (0.9, 0.3, 0.44, 1),
+            (0.98, 0.82, 0.28, 1),
+            (0.58, 0.72, 1.0, 1),
+            (0.95, 0.62, 0.88, 1),
+            (0.86, 0.94, 0.68, 1),
+        )
+        grass_colors = (
+            (0.12, 0.38, 0.12, 1),
+            (0.16, 0.48, 0.17, 1),
+            (0.2, 0.42, 0.14, 1),
+            (0.09, 0.3, 0.12, 1),
+        )
+
+        def in_busy_center(px: float, py: float) -> bool:
+            return -18.0 < px < 18.0 and -16.0 < py < 18.0
+
+        def in_frost(px: float, py: float) -> bool:
+            return (
+                FROST_BIOME_BOUNDS[0] <= px <= FROST_BIOME_BOUNDS[1]
+                and FROST_BIOME_BOUNDS[2] <= py <= FROST_BIOME_BOUNDS[3]
+            )
+
+        def in_sunken_meadow(px: float, py: float) -> bool:
+            return (
+                SUNKEN_MEADOW_BOUNDS[0] <= px <= SUNKEN_MEADOW_BOUNDS[1]
+                and SUNKEN_MEADOW_BOUNDS[2] <= py <= SUNKEN_MEADOW_BOUNDS[3]
+            )
+
+        meadow_index = 0
+        for _ in range(190):
+            x = rng.uniform(-WORLD_LIMIT + 10.0, WORLD_LIMIT - 10.0)
+            y = rng.uniform(-WORLD_LIMIT + 10.0, WORLD_LIMIT - 10.0)
+            pos = Vec3(x, y, 0)
+            if in_busy_center(x, y) or in_frost(x, y) or in_sunken_meadow(x, y) or self._is_water_position(pos):
+                continue
+            height = rng.uniform(0.16, 0.42)
+            make_box(
+                self.render,
+                f"field-grass-blade-{meadow_index}",
+                (0.04, 0.05, height),
+                rng.choice(grass_colors),
+                (x, y, height / 2),
+                (0, rng.uniform(-18, 18), rng.uniform(0, 360)),
+            )
+            if meadow_index % 3 == 0:
+                make_box(
+                    self.render,
+                    f"field-flower-head-{meadow_index}",
+                    (0.11, 0.11, 0.07),
+                    rng.choice(flower_colors),
+                    (x, y, height + 0.035),
+                    (0, 0, rng.uniform(0, 360)),
+                )
+            meadow_index += 1
+
+        fern_color = (0.1, 0.34, 0.14, 1)
+        for index in range(48):
+            x = rng.choice((rng.uniform(-WORLD_LIMIT + 18, -34), rng.uniform(34, WORLD_LIMIT - 18)))
+            y = rng.uniform(-WORLD_LIMIT + 18, WORLD_LIMIT - 18)
+            if in_frost(x, y) or in_sunken_meadow(x, y):
+                continue
+            root = self.render.attachNewNode(f"forest-fern-{index}")
+            root.setPos(x, y, 0)
+            root.setH(rng.uniform(0, 360))
+            for frond in range(5):
+                angle = frond * 72 + rng.uniform(-10, 10)
+                make_box(
+                    root,
+                    f"frond-{frond}",
+                    (0.08, rng.uniform(0.5, 0.86), 0.055),
+                    fern_color,
+                    (0, 0.26, 0.18),
+                    (0, rng.uniform(-16, 8), angle),
+                )
+
+        for index in range(28):
+            x = rng.uniform(-WORLD_LIMIT + 14, WORLD_LIMIT - 14)
+            y = rng.choice((rng.uniform(-WORLD_LIMIT + 14, -26), rng.uniform(26, WORLD_LIMIT - 14)))
+            if in_frost(x, y) or in_sunken_meadow(x, y):
+                continue
+            heading = rng.uniform(0, 180)
+            root = self.render.attachNewNode(f"fallen-log-{index}")
+            root.setPos(x, y, 0.13)
+            root.setH(heading)
+            make_box(root, "log-body", (rng.uniform(0.38, 0.58), rng.uniform(1.25, 2.1), 0.26), (0.26, 0.15, 0.07, 1))
+            make_box(root, "log-cut-a", (0.42, 0.06, 0.22), (0.54, 0.38, 0.2, 1), (0, -0.64, 0))
+            make_box(root, "log-moss", (0.34, 0.9, 0.05), (0.1, 0.32, 0.12, 1), (0, 0.08, 0.16))
+
+        for index in range(42):
+            x = rng.uniform(-WORLD_LIMIT + 16, WORLD_LIMIT - 16)
+            y = rng.uniform(-WORLD_LIMIT + 16, WORLD_LIMIT - 16)
+            if in_busy_center(x, y) or in_frost(x, y) or in_sunken_meadow(x, y):
+                continue
+            scale = rng.uniform(0.55, 1.35)
+            make_box(self.render, f"field-mushroom-stem-{index}", (0.09 * scale, 0.09 * scale, 0.2 * scale), (0.74, 0.68, 0.54, 1), (x, y, 0.1 * scale))
+            make_box(self.render, f"field-mushroom-cap-{index}", (0.28 * scale, 0.24 * scale, 0.11 * scale), rng.choice(((0.66, 0.12, 0.18, 1), (0.82, 0.48, 0.18, 1), (0.44, 0.24, 0.16, 1))), (x, y, 0.24 * scale))
+
+        for index in range(26):
+            x = rng.uniform(-12.5, 12.5)
+            y = rng.uniform(5.0, 15.8)
+            if -1.9 <= x <= 1.9 and 2.6 <= y <= 7.0:
+                continue
+            height = rng.uniform(0.75, 1.35)
+            make_box(
+                self.render,
+                f"extra-cattail-stem-{index}",
+                (0.04, 0.04, height),
+                (0.12, 0.36, 0.14, 1),
+                (x, y, height / 2),
+                (0, rng.uniform(-14, 14), rng.uniform(0, 360)),
+            )
+            make_box(
+                self.render,
+                f"extra-cattail-head-{index}",
+                (0.09, 0.09, 0.26),
+                (0.32, 0.18, 0.08, 1),
+                (x, y, height + 0.12),
+            )
+
+        for index in range(22):
+            x = rng.uniform(FROST_BIOME_BOUNDS[0] + 2.0, FROST_BIOME_BOUNDS[1] - 2.0)
+            y = rng.uniform(FROST_BIOME_BOUNDS[2] + 2.0, FROST_BIOME_BOUNDS[3] - 2.0)
+            spike_height = rng.uniform(0.28, 0.7)
+            make_box(
+                self.render,
+                f"frost-reed-{index}",
+                (0.07, 0.07, spike_height),
+                rng.choice(((0.62, 0.78, 0.78, 1), (0.82, 0.9, 0.86, 1), (0.45, 0.64, 0.72, 1))),
+                (x, y, spike_height / 2),
+                (0, rng.uniform(-12, 12), rng.uniform(0, 360)),
+            )
+            if index % 4 == 0:
+                bloom = make_box(
+                    self.render,
+                    f"frost-bloom-{index}",
+                    (0.16, 0.16, 0.08),
+                    (0.72, 0.92, 1.0, 0.68),
+                    (x, y, spike_height + 0.05),
+                    (0, 0, rng.uniform(0, 360)),
+                )
+                self._add_animated_detail(bloom, bob_amount=0.012, sway_amount=1.8, speed=1.2, phase=index)
+
+        for index in range(16):
+            butterfly = self.render.attachNewNode(f"field-butterfly-{index}")
+            x = rng.uniform(-WORLD_LIMIT + 26, WORLD_LIMIT - 26)
+            y = rng.uniform(-WORLD_LIMIT + 26, WORLD_LIMIT - 26)
+            if in_busy_center(x, y) or in_frost(x, y) or in_sunken_meadow(x, y):
+                y += 24.0
+            butterfly.setPos(x, y, rng.uniform(0.72, 1.35))
+            color = rng.choice(flower_colors)
+            make_box(butterfly, "body", (0.04, 0.08, 0.045), (0.08, 0.06, 0.04, 1), (0, 0, 0))
+            make_box(butterfly, "left-wing", (0.15, 0.035, 0.09), color, (-0.095, 0, 0.02), (0, 0, 18))
+            make_box(butterfly, "right-wing", (0.15, 0.035, 0.09), color, (0.095, 0, 0.02), (0, 0, -18))
+            self._add_animated_detail(
+                butterfly,
+                bob_amount=rng.uniform(0.12, 0.22),
+                sway_amount=rng.uniform(10.0, 18.0),
+                speed=rng.uniform(1.2, 2.0),
+                phase=index * 0.8,
+            )
+
     def _add_animated_detail(
         self,
         node,
@@ -1769,8 +3014,82 @@ class SwordfishGame(ShowBase):
         make_box(arena, "boss-gate-right", (0.4, 0.4, 2.4), gate_color, (2.2, -(BOSS_ARENA_RADIUS - 0.6), 1.2))
         make_box(arena, "boss-gate-beam", (4.8, 0.35, 0.4), gate_color, (0, -(BOSS_ARENA_RADIUS - 0.6), 2.5))
 
+    def _build_imported_player(self) -> bool:
+        self.player = self.render.attachNewNode("player")
+        knight = _load_obj_asset(QUATERNIUS_KNIGHT_ASSET_DIR, "KnightCharacter")
+        if knight is None:
+            self.player.removeNode()
+            self.player = None
+            return False
+
+        make_box(
+            self.player,
+            "player-ground-shadow",
+            (0.82, 0.52, 0.035),
+            (0.02, 0.025, 0.02, 0.28),
+            (0, 0.06, 0.03),
+        )
+        self.player_visual_model = _copy_imported_model(
+            self.player,
+            "player-knight-model",
+            QUATERNIUS_KNIGHT_ASSET_DIR,
+            "KnightCharacter",
+            0.34,
+            (0, 0.0, 0.0),
+            IMPORTED_PLAYER_BASE_HPR,
+            ink=True,
+        )
+        self.left_leg = self.player.attachNewNode("left-leg")
+        self.left_leg.setPos(-0.18, 0.02, 0.5)
+        self.right_leg = self.player.attachNewNode("right-leg")
+        self.right_leg.setPos(0.18, 0.02, 0.5)
+        self.left_arm = self.player.attachNewNode("left-arm")
+        self.left_arm.setPos(-0.37, 0.1, 1.12)
+        self.left_arm.setHpr(8, -9, -8)
+        self.right_arm = self.player.attachNewNode("right-arm")
+        self.right_arm.setPos(0.38, 0.14, 1.12)
+        self.right_arm.setHpr(-10, -12, 8)
+        make_box(
+            self.right_arm,
+            "right-grip-gauntlet",
+            (0.16, 0.16, 0.15),
+            (0.45, 0.46, 0.48, 1),
+            (0, 0.12, -0.2),
+        )
+        self.weapon_pivot = self.right_arm.attachNewNode("weapon-pivot")
+        self.weapon_pivot.setPos(0.0, 0.24, -0.22)
+        self.weapon_pivot.setHpr(4, 18, -8)
+        self.weapon_root = self.weapon_pivot.attachNewNode("weapon-root")
+        self._build_weapon_model(None)
+        self._build_slash_trail()
+        self.player.setPos(0, 3.0, 0)
+
+        if self.camera is not None:
+            self.camera.setPos(0, -17, 14)
+            self.camera.lookAt(self.player)
+        return True
+
+    def _set_imported_player_pose(
+        self,
+        heading_offset: float = 0.0,
+        pitch_offset: float = 0.0,
+        roll_offset: float = 0.0,
+        z_offset: float = 0.0,
+    ):
+        if self.player_visual_model is None:
+            return
+
+        base_h, base_p, base_r = IMPORTED_PLAYER_BASE_HPR
+        self.player_visual_model.setHpr(
+            base_h + heading_offset,
+            base_p + pitch_offset,
+            base_r + roll_offset,
+        )
+        self.player_visual_model.setZ(z_offset)
+
     def _build_player(self):
         self.player = self.render.attachNewNode("player")
+        self.player_visual_model = None
         make_box(
             self.player,
             "player-ground-shadow",
@@ -1821,29 +3140,6 @@ class SwordfishGame(ShowBase):
             (0.16, 0.06, 0.16),
             (0.95, 0.74, 0.28, 1),
             (0, 0.3, 0.59),
-        )
-        make_box(
-            self.player,
-            "player-scarf",
-            (0.58, 0.08, 0.16),
-            (0.72, 0.08, 0.12, 1),
-            (0, 0.28, 1.18),
-        )
-        make_box(
-            self.player,
-            "player-scarf-tail",
-            (0.14, 0.1, 0.42),
-            (0.62, 0.06, 0.1, 1),
-            (-0.28, 0.22, 0.98),
-            (0, 0, -14),
-        )
-        make_box(
-            self.player,
-            "player-satchel-strap",
-            (0.1, 0.06, 1.18),
-            (0.23, 0.12, 0.06, 1),
-            (-0.1, 0.3, 0.96),
-            (0, 0, 24),
         )
         make_box(
             self.player,
@@ -1966,61 +3262,61 @@ class SwordfishGame(ShowBase):
         )
 
         self.left_arm = self.player.attachNewNode("left-arm")
-        self.left_arm.setPos(-0.52, 0.02, 1.06)
-        self.left_arm.setHpr(16, -4, -12)
+        self.left_arm.setPos(-0.39, 0.03, 1.08)
+        self.left_arm.setHpr(8, -9, -8)
         make_box(
             self.left_arm,
             "left-sleeve",
-            (0.18, 0.2, 0.72),
+            (0.19, 0.2, 0.66),
             (0.1, 0.31, 0.39, 1),
-            (0, 0.16, -0.24),
-            (0, 0, -14),
+            (0, 0.1, -0.28),
+            (0, 0, -7),
         )
         make_box(
             self.left_arm,
             "left-cuff",
             (0.2, 0.22, 0.1),
             (0.07, 0.22, 0.3, 1),
-            (0, 0.26, -0.52),
-            (0, 0, -14),
+            (0, 0.18, -0.56),
+            (0, 0, -7),
         )
         make_box(
             self.left_arm,
             "left-hand",
             (0.18, 0.17, 0.15),
             (0.9, 0.64, 0.44, 1),
-            (0, 0.34, -0.63),
+            (0, 0.24, -0.65),
         )
 
         self.right_arm = self.player.attachNewNode("right-arm")
-        self.right_arm.setPos(0.52, 0.02, 1.06)
-        self.right_arm.setHpr(-16, -4, 12)
+        self.right_arm.setPos(0.39, 0.03, 1.08)
+        self.right_arm.setHpr(-10, -12, 8)
         make_box(
             self.right_arm,
             "right-sleeve",
-            (0.18, 0.2, 0.72),
+            (0.19, 0.2, 0.66),
             (0.1, 0.31, 0.39, 1),
-            (0, 0.18, -0.22),
-            (0, 0, 14),
+            (0, 0.12, -0.28),
+            (0, 0, 7),
         )
         make_box(
             self.right_arm,
             "right-cuff",
             (0.2, 0.22, 0.1),
             (0.07, 0.22, 0.3, 1),
-            (0, 0.28, -0.5),
-            (0, 0, 14),
+            (0, 0.2, -0.56),
+            (0, 0, 7),
         )
         make_box(
             self.right_arm,
             "right-hand",
             (0.19, 0.18, 0.16),
             (0.9, 0.64, 0.44, 1),
-            (0, 0.42, -0.54),
+            (0, 0.28, -0.65),
         )
         self.weapon_pivot = self.right_arm.attachNewNode("weapon-pivot")
-        self.weapon_pivot.setPos(0, 0.52, -0.55)
-        self.weapon_pivot.setHpr(0, 0, 0)
+        self.weapon_pivot.setPos(0, 0.28, -0.5)
+        self.weapon_pivot.setHpr(4, 18, -8)
         self.weapon_root = self.weapon_pivot.attachNewNode("weapon-root")
         self._build_weapon_model(None)
         self._build_slash_trail()
@@ -2030,12 +3326,152 @@ class SwordfishGame(ShowBase):
             self.camera.setPos(0, -17, 14)
             self.camera.lookAt(self.player)
 
+    def _build_pet(self):
+        self.pet = self.render.attachNewNode("pet-tiger-cub")
+        self.pet.setPos(-0.9, 2.15, 0)
+        self.pet_visual = self.pet.attachNewNode("pet-tiger-visual")
+
+        orange = (0.98, 0.52, 0.14, 1)
+        light_orange = (1.0, 0.62, 0.22, 1)
+        dark = (0.08, 0.055, 0.035, 1)
+        cream = (1.0, 0.86, 0.58, 1)
+        white = (1.0, 0.96, 0.86, 1)
+        pink = (0.92, 0.48, 0.44, 1)
+        make_box(self.pet, "pet-shadow", (0.9, 0.58, 0.03), (0.02, 0.02, 0.018, 0.26), (0, 0.02, 0.035))
+        make_ellipsoid(self.pet_visual, "pet-body", (0.45, 0.66, 0.28), orange, (0, 0, 0.36), segments=12, rings=6)
+        make_ellipsoid(self.pet_visual, "pet-chest-belly", (0.26, 0.36, 0.12), cream, (0, 0.26, 0.25), segments=8, rings=4)
+        make_box(self.pet_visual, "pet-back-stripe", (0.09, 0.84, 0.085), dark, (0, -0.06, 0.64))
+        for index, y in enumerate((-0.44, -0.24, -0.04, 0.17, 0.38)):
+            make_box(self.pet_visual, f"pet-side-stripe-left-{index}", (0.075, 0.22, 0.08), dark, (-0.36, y, 0.5), (0, 0, -25 + index * 5))
+            make_box(self.pet_visual, f"pet-side-stripe-right-{index}", (0.075, 0.22, 0.08), dark, (0.36, y, 0.5), (0, 0, 25 - index * 5))
+        for index, y in enumerate((-0.38, -0.1, 0.2)):
+            make_box(self.pet_visual, f"pet-rib-stripe-left-{index}", (0.055, 0.16, 0.06), dark, (-0.43, y, 0.36), (0, 0, 48))
+            make_box(self.pet_visual, f"pet-rib-stripe-right-{index}", (0.055, 0.16, 0.06), dark, (0.43, y, 0.36), (0, 0, -48))
+
+        self.pet_head = self.pet_visual.attachNewNode("pet-head-pivot")
+        self.pet_head.setPos(0, 0.66, 0.52)
+        make_ellipsoid(self.pet_head, "pet-head", (0.29, 0.27, 0.24), orange, segments=10, rings=5)
+        make_ellipsoid(self.pet_head, "pet-left-cheek", (0.11, 0.08, 0.08), white, (-0.1, 0.2, -0.08), segments=7, rings=4)
+        make_ellipsoid(self.pet_head, "pet-right-cheek", (0.11, 0.08, 0.08), white, (0.1, 0.2, -0.08), segments=7, rings=4)
+        make_box(self.pet_head, "pet-muzzle", (0.2, 0.17, 0.1), cream, (0, 0.23, -0.08))
+        make_box(self.pet_head, "pet-nose", (0.075, 0.045, 0.05), dark, (0, 0.34, -0.02))
+        make_box(self.pet_head, "pet-mouth", (0.11, 0.025, 0.025), dark, (0, 0.36, -0.09))
+        make_box(self.pet_head, "pet-eye-patch-left", (0.1, 0.035, 0.09), white, (-0.1, 0.2, 0.075), (0, 0, 5))
+        make_box(self.pet_head, "pet-eye-patch-right", (0.1, 0.035, 0.09), white, (0.1, 0.2, 0.075), (0, 0, -5))
+        make_box(self.pet_head, "pet-eye-left", (0.045, 0.035, 0.045), (0.02, 0.03, 0.025, 1), (-0.1, 0.225, 0.085))
+        make_box(self.pet_head, "pet-eye-right", (0.045, 0.035, 0.045), (0.02, 0.03, 0.025, 1), (0.1, 0.225, 0.085))
+        make_box(self.pet_head, "pet-eye-glint-left", (0.015, 0.012, 0.015), white, (-0.112, 0.25, 0.096))
+        make_box(self.pet_head, "pet-eye-glint-right", (0.015, 0.012, 0.015), white, (0.088, 0.25, 0.096))
+        make_box(self.pet_head, "pet-forehead-stripe-center", (0.055, 0.07, 0.13), dark, (0, 0.16, 0.18))
+        make_box(self.pet_head, "pet-forehead-stripe-left", (0.045, 0.07, 0.12), dark, (-0.11, 0.14, 0.16), (0, 0, 32))
+        make_box(self.pet_head, "pet-forehead-stripe-right", (0.045, 0.07, 0.12), dark, (0.11, 0.14, 0.16), (0, 0, -32))
+        make_box(self.pet_head, "pet-cheek-stripe-left-a", (0.035, 0.12, 0.03), dark, (-0.24, 0.17, 0.02), (0, 0, -24))
+        make_box(self.pet_head, "pet-cheek-stripe-left-b", (0.035, 0.12, 0.03), dark, (-0.24, 0.17, -0.07), (0, 0, -34))
+        make_box(self.pet_head, "pet-cheek-stripe-right-a", (0.035, 0.12, 0.03), dark, (0.24, 0.17, 0.02), (0, 0, 24))
+        make_box(self.pet_head, "pet-cheek-stripe-right-b", (0.035, 0.12, 0.03), dark, (0.24, 0.17, -0.07), (0, 0, 34))
+        make_box(self.pet_head, "pet-whisker-left-a", (0.2, 0.018, 0.018), dark, (-0.23, 0.3, -0.055), (0, 0, -10))
+        make_box(self.pet_head, "pet-whisker-left-b", (0.18, 0.018, 0.018), dark, (-0.22, 0.3, -0.105), (0, 0, -24))
+        make_box(self.pet_head, "pet-whisker-right-a", (0.2, 0.018, 0.018), dark, (0.23, 0.3, -0.055), (0, 0, 10))
+        make_box(self.pet_head, "pet-whisker-right-b", (0.18, 0.018, 0.018), dark, (0.22, 0.3, -0.105), (0, 0, 24))
+        make_ellipsoid(self.pet_head, "pet-ear-left", (0.09, 0.055, 0.14), orange, (-0.18, 0.0, 0.22), hpr=(0, 0, -15), segments=7, rings=4)
+        make_ellipsoid(self.pet_head, "pet-ear-right", (0.09, 0.055, 0.14), orange, (0.18, 0.0, 0.22), hpr=(0, 0, 15), segments=7, rings=4)
+        make_ellipsoid(self.pet_head, "pet-ear-left-inner", (0.045, 0.03, 0.08), pink, (-0.18, 0.03, 0.22), hpr=(0, 0, -15), segments=6, rings=3)
+        make_ellipsoid(self.pet_head, "pet-ear-right-inner", (0.045, 0.03, 0.08), pink, (0.18, 0.03, 0.22), hpr=(0, 0, 15), segments=6, rings=3)
+
+        self.pet_tail = self.pet_visual.attachNewNode("pet-tail-pivot")
+        self.pet_tail.setPos(0, -0.56, 0.42)
+        make_box(self.pet_tail, "pet-tail", (0.11, 0.62, 0.11), light_orange, (0, -0.28, 0.02), (34, 0, 0))
+        for index, y in enumerate((-0.12, -0.28, -0.44)):
+            make_box(self.pet_tail, f"pet-tail-ring-{index}", (0.13, 0.055, 0.13), dark, (0, y, 0.02), (34, 0, 0))
+        make_box(self.pet_tail, "pet-tail-tip", (0.13, 0.16, 0.13), dark, (0, -0.59, 0.02), (34, 0, 0))
+
+        self.pet_left_foot = self.pet_visual.attachNewNode("pet-left-foot-pivot")
+        self.pet_left_foot.setPos(-0.22, 0.22, 0.18)
+        make_box(self.pet_left_foot, "pet-left-paw", (0.16, 0.2, 0.1), cream, (0, 0, -0.05))
+        make_box(self.pet_left_foot, "pet-left-paw-stripe", (0.15, 0.03, 0.035), dark, (0, 0.02, 0.02))
+        self.pet_right_foot = self.pet_visual.attachNewNode("pet-right-foot-pivot")
+        self.pet_right_foot.setPos(0.22, 0.22, 0.18)
+        make_box(self.pet_right_foot, "pet-right-paw", (0.16, 0.2, 0.1), cream, (0, 0, -0.05))
+        make_box(self.pet_right_foot, "pet-right-paw-stripe", (0.15, 0.03, 0.035), dark, (0, 0.02, 0.02))
+        for index, x in enumerate((-0.24, 0.24)):
+            make_box(self.pet_visual, f"pet-back-paw-{index}", (0.17, 0.2, 0.1), cream, (x, -0.32, 0.12))
+            make_box(self.pet_visual, f"pet-back-paw-stripe-{index}", (0.14, 0.035, 0.035), dark, (x, -0.29, 0.18))
+
     def _build_weapon_model(self, weapon: Optional[Weapon]):
         if self.weapon_root is not None:
             self.weapon_root.removeNode()
 
         self.weapon_root = self.weapon_pivot.attachNewNode("weapon-root")
         self._populate_weapon_model(self.weapon_root, weapon, preview=False)
+
+    def _imported_weapon_asset(self, weapon: Weapon) -> Optional[str]:
+        weapon_type = weapon.weapon_type
+        if weapon_type == "bow":
+            if weapon.rarity == "mythic":
+                return "Bow_Golden"
+            if weapon.rarity == "relic":
+                return "Bow_Evil"
+            return "Bow_Wooden"
+        if weapon_type == "saber" and weapon.rarity == "mythic":
+            return "Sword_Golden"
+        if weapon_type == "axe" and weapon.rarity in {"relic", "mythic"}:
+            return "Axe_Double"
+        return WEAPON_ASSET_BY_TYPE.get(weapon_type)
+
+    def _imported_weapon_scale(self, asset_name: str, preview: bool) -> float:
+        scale_by_asset = {
+            "Spear": 0.2,
+            "Claymore": 0.28,
+            "Sword_Big": 0.3,
+            "Hammer_Double": 0.31,
+            "Axe": 0.33,
+            "Axe_Double": 0.31,
+            "Bow_Wooden": 0.34,
+            "Bow_Evil": 0.34,
+            "Bow_Golden": 0.34,
+        }
+        base_scale = scale_by_asset.get(asset_name, 0.35)
+        return base_scale * (1.08 if preview else 1.0)
+
+    def _populate_imported_weapon_model(self, parent, weapon: Weapon, preview: bool) -> bool:
+        asset_name = self._imported_weapon_asset(weapon)
+        if asset_name is None:
+            return False
+
+        weapon_model = _copy_imported_model(
+            parent,
+            f"weapon-{asset_name.lower()}",
+            QUATERNIUS_WEAPON_ASSET_DIR,
+            asset_name,
+            self._imported_weapon_scale(asset_name, preview),
+            (0, 0.03, 0.02),
+            ink=True,
+        )
+        if weapon_model is None:
+            return False
+
+        glow = weapon_glow_color(weapon)
+        weapon_type = weapon.weapon_type
+        if weapon_type == "bow":
+            make_box(parent, "bow-ready-arrow", (0.045, 1.25, 0.045), glow, (0.18, 0.42, 0.08))
+            make_flat_prism(parent, "bow-ready-arrow-head", ((0.18, 1.12), (0.3, 0.92), (0.06, 0.92)), 0.09, glow, (0, 0, 0.08))
+            make_box(parent, "bow-magic-string", (0.03, 1.65, 0.03), glow, (0.32, 0.0, 0.02))
+        elif weapon_type == "axe":
+            make_box(parent, "axe-rune-one", (0.12, 0.04, 0.42), glow, (0.38, 1.3, 0.34), (0, 0, 22))
+            make_box(parent, "axe-rune-two", (0.12, 0.04, 0.42), glow, (0.52, 1.08, 0.34), (0, 0, -22))
+        elif weapon_type == "mace":
+            make_box(parent, "mace-halo-east", (0.82, 0.06, 0.06), glow, (0, 1.18, 0.08), (0, 0, 0))
+            make_box(parent, "mace-halo-north", (0.06, 0.82, 0.06), glow, (0, 1.18, 0.08), (0, 0, 0))
+        elif weapon_type == "spear":
+            make_box(parent, "spear-banner", (0.42, 0.08, 0.32), glow, (0.22, 1.16, -0.14), (0, 0, -14))
+            make_box(parent, "spear-tip-star", (0.42, 0.05, 0.05), glow, (0, 1.54, 0.08), (0, 0, 35))
+        else:
+            make_box(parent, "blade-rune-line", (0.045, 1.12, 0.045), glow, (0.02, 1.05, 0.13))
+            make_box(parent, "blade-rune-cross", (0.34, 0.045, 0.045), glow, (0.02, 1.44, 0.13), (0, 0, 28))
+
+        if preview:
+            make_box(parent, "preview-shadow", (1.12, 0.22, 0.035), (0, 0, 0, 0.24), (0, 0.82, -0.58))
+        return True
 
     def _populate_weapon_model(self, parent, weapon: Optional[Weapon], preview: bool):
         wood = (0.23, 0.13, 0.06, 1)
@@ -2107,6 +3543,8 @@ class SwordfishGame(ShowBase):
             return
 
         weapon_type = weapon.weapon_type
+        if self._populate_imported_weapon_model(parent, weapon, preview):
+            return
 
         make_box(parent, "grip", (0.13, 0.58, 0.13), leather, (0, 0.27, 0))
 
@@ -2366,15 +3804,25 @@ class SwordfishGame(ShowBase):
         self.slash_part_base_positions = [Vec3(part.getPos()) for part in self.slash_parts]
         self.slash_root.hide()
 
-    def _start_swing(self):
+    def _start_swing(self, powered: bool = False):
         if self.right_arm is None or self.weapon_pivot is None:
             return
 
+        self.swing_duration = 0.52 if powered else 0.28
         self.swing_time = self.swing_duration
+        self.swing_is_powered = powered
+        if powered:
+            self.swing_style = "powered"
+        elif self.next_swing_vertical:
+            self.swing_style = "vertical"
+            self.next_swing_vertical = False
+        else:
+            self.swing_style = "horizontal"
+            self.next_swing_vertical = True
         self.swing_spark_timer = 0.0
         self.swing_sparked = False
         if self.left_arm is not None:
-            self.left_arm.setHpr(30, -8, -18)
+            self.left_arm.setHpr(20 if powered else 14, -18, -12)
         color = weapon_glow_color(self.current_weapon)
         red, green, blue, alpha = color
         if self.current_weapon is None:
@@ -2387,10 +3835,15 @@ class SwordfishGame(ShowBase):
             part.setColor(red, green, blue, min(part_alpha, 0.72))
 
         if self.slash_root is not None:
-            self.slash_root.setScale(0.45)
-            self.slash_root.setH(-65)
-            self.slash_root.setP(0)
-            self.slash_root.setR(0)
+            self.slash_root.setScale(0.7 if powered else 0.45)
+            if self.swing_style == "vertical":
+                self.slash_root.setH(-10)
+                self.slash_root.setP(-72)
+                self.slash_root.setR(0)
+            else:
+                self.slash_root.setH(-110 if powered else -65)
+                self.slash_root.setP(0)
+                self.slash_root.setR(0)
             self.slash_root.show()
 
     def _update_swing(self, dt: float):
@@ -2398,12 +3851,14 @@ class SwordfishGame(ShowBase):
             return
 
         if self.swing_time <= 0.0:
+            self.swing_is_powered = False
+            self.swing_style = "horizontal"
             if self.is_player_moving:
                 stride = math.sin(self.walk_time)
-                self.right_arm.setHpr(-16 + stride * 12.0, -4, 12)
+                self.right_arm.setHpr(-10 + stride * 7.0, -12, 8)
             else:
-                self.right_arm.setHpr(-16, -4, 12)
-            self.weapon_pivot.setHpr(0, 0, 0)
+                self.right_arm.setHpr(-10, -12, 8)
+            self.weapon_pivot.setHpr(4, 18, -8)
             if self.slash_root is not None:
                 self.slash_root.setColorScale(1, 1, 1, 1)
                 self.slash_root.hide()
@@ -2411,44 +3866,88 @@ class SwordfishGame(ShowBase):
 
         self.swing_time = max(0.0, self.swing_time - dt)
         progress = 1.0 - (self.swing_time / self.swing_duration)
-        if progress < 0.28:
-            windup = progress / 0.28
-            arm_heading = -16 + 86 * windup
-            arm_pitch = -4 - 18 * windup
-            arm_roll = 12 + 32 * windup
-            weapon_roll = -18 - 42 * windup
-            slash_alpha_scale = 0.35
-        elif progress < 0.64:
-            slash = (progress - 0.28) / 0.36
-            snap = math.sin(slash * math.pi * 0.5)
-            arm_heading = 70 - 158 * snap
-            arm_pitch = -22 + 10 * slash
-            arm_roll = 44 - 68 * snap
-            weapon_roll = -60 + 122 * snap
-            slash_alpha_scale = 1.0
+        if self.swing_style == "vertical":
+            if progress < 0.3:
+                windup = progress / 0.3
+                arm_heading = -8 + 18 * windup
+                arm_pitch = -8 + 72 * windup
+                arm_roll = 8 + 16 * windup
+                weapon_roll = -8 - 10 * windup
+                slash_alpha_scale = 0.32
+            elif progress < 0.68:
+                slash = (progress - 0.3) / 0.38
+                snap = math.sin(slash * math.pi * 0.5)
+                arm_heading = 10 - 18 * snap
+                arm_pitch = 64 - 104 * snap
+                arm_roll = 24 - 30 * snap
+                weapon_roll = -18 + 28 * snap
+                slash_alpha_scale = 1.0
+            else:
+                recover = (progress - 0.68) / 0.32
+                ease = 1.0 - (1.0 - recover) * (1.0 - recover)
+                arm_heading = -8 - 2 * ease
+                arm_pitch = -40 + 28 * ease
+                arm_roll = -6 + 14 * ease
+                weapon_roll = 10 - 18 * ease
+                slash_alpha_scale = max(0.0, 1.0 - recover)
         else:
-            recover = (progress - 0.64) / 0.36
-            ease = 1.0 - (1.0 - recover) * (1.0 - recover)
-            arm_heading = -88 + 72 * ease
-            arm_pitch = -12 + 8 * ease
-            arm_roll = -24 + 36 * ease
-            weapon_roll = 62 - 62 * ease
-            slash_alpha_scale = max(0.0, 1.0 - recover)
+            if progress < 0.28:
+                windup = progress / 0.28
+                arm_heading = -10 + 58 * windup
+                arm_pitch = -12 - 14 * windup
+                arm_roll = 8 + 20 * windup
+                weapon_roll = -8 - 34 * windup
+                slash_alpha_scale = 0.35
+            elif progress < 0.64:
+                slash = (progress - 0.28) / 0.36
+                snap = math.sin(slash * math.pi * 0.5)
+                arm_heading = 48 - 102 * snap
+                arm_pitch = -26 + 8 * slash
+                arm_roll = 28 - 38 * snap
+                weapon_roll = -42 + 88 * snap
+                slash_alpha_scale = 1.0
+            else:
+                recover = (progress - 0.64) / 0.36
+                ease = 1.0 - (1.0 - recover) * (1.0 - recover)
+                arm_heading = -54 + 44 * ease
+                arm_pitch = -18 + 6 * ease
+                arm_roll = -10 + 18 * ease
+                weapon_roll = 46 - 54 * ease
+                slash_alpha_scale = max(0.0, 1.0 - recover)
 
-        body_twist = math.sin(progress * math.pi) * 7.0
+        power_scale = 1.35 if self.swing_is_powered else 1.0
+        body_twist = math.sin(progress * math.pi) * (11.0 if self.swing_is_powered else 7.0)
         self.player.setR(self.player.getR() + body_twist * 0.08)
+        self._set_imported_player_pose(
+            heading_offset=body_twist * 0.65,
+            pitch_offset=-2.5 - abs(body_twist) * 0.22,
+            roll_offset=-body_twist * 0.42,
+            z_offset=math.sin(progress * math.pi) * 0.025,
+        )
         self.right_arm.setHpr(arm_heading, arm_pitch, arm_roll)
-        self.weapon_pivot.setHpr(0, -8 * math.sin(progress * math.pi), weapon_roll)
+        if self.swing_style == "vertical":
+            self.weapon_pivot.setHpr(
+                4,
+                66 - 112 * progress,
+                weapon_roll,
+            )
+        else:
+            self.weapon_pivot.setHpr(4, 18 - 8 * math.sin(progress * math.pi) * power_scale, weapon_roll * power_scale)
         if self.left_arm is not None:
-            self.left_arm.setHpr(20 + body_twist, -6, -18 - body_twist * 0.4)
+            self.left_arm.setHpr(10 + body_twist * 0.5, -16, -10 - body_twist * 0.25)
 
         if self.slash_root is not None:
             slash_curve = math.sin(min(1.0, progress / 0.68) * math.pi)
-            stretch = 0.55 + slash_curve * 1.08
+            stretch = (0.55 + slash_curve * 1.08) * power_scale
             self.slash_root.setScale(stretch, stretch * (0.82 + slash_curve * 0.28), 1.0)
-            self.slash_root.setH(-82 + 168 * progress)
-            self.slash_root.setP(-14 + 28 * slash_curve)
-            self.slash_root.setR(math.sin(progress * math.pi * 2.0) * 5.0)
+            if self.swing_style == "vertical":
+                self.slash_root.setH(-10 + math.sin(progress * math.pi) * 18)
+                self.slash_root.setP(-86 + 172 * progress)
+                self.slash_root.setR(math.sin(progress * math.pi * 2.0) * 4.0)
+            else:
+                self.slash_root.setH((-110 if self.swing_is_powered else -82) + (220 if self.swing_is_powered else 168) * progress)
+                self.slash_root.setP(-18 + 34 * slash_curve)
+                self.slash_root.setR(math.sin(progress * math.pi * 2.0) * (9.0 if self.swing_is_powered else 5.0))
             self.slash_root.setColorScale(1, 1, 1, slash_alpha_scale)
 
             for index, (part, base_pos) in enumerate(
@@ -2460,19 +3959,20 @@ class SwordfishGame(ShowBase):
         if 0.33 <= progress <= 0.58:
             self.swing_spark_timer -= dt
             if self.swing_spark_timer <= 0.0:
-                self.swing_spark_timer = 0.045
-                self._spawn_slash_sparks(progress, big=not self.swing_sparked)
+                self.swing_spark_timer = 0.03 if self.swing_is_powered else 0.045
+                self._spawn_slash_sparks(progress, big=self.swing_is_powered or not self.swing_sparked)
                 self.swing_sparked = True
 
         if self.swing_time == 0.0:
+            self.swing_style = "horizontal"
             if self.is_player_moving:
                 stride = math.sin(self.walk_time)
-                self.right_arm.setHpr(-16 + stride * 12.0, -4, 12)
+                self.right_arm.setHpr(-10 + stride * 7.0, -12, 8)
             else:
-                self.right_arm.setHpr(-16, -4, 12)
-            self.weapon_pivot.setHpr(0, 0, 0)
+                self.right_arm.setHpr(-10, -12, 8)
+            self.weapon_pivot.setHpr(4, 18, -8)
             if self.left_arm is not None:
-                self.left_arm.setHpr(16, -4, -12)
+                self.left_arm.setHpr(8, -9, -8)
             if self.slash_root is not None:
                 self.slash_root.setColorScale(1, 1, 1, 1)
                 self.slash_root.hide()
@@ -2514,23 +4014,23 @@ class SwordfishGame(ShowBase):
         self.render.setShaderAuto()
 
         ambient = AmbientLight("soft-ambient")
-        ambient.setColor((0.34, 0.38, 0.42, 1))
+        ambient.setColor((0.18, 0.2, 0.22, 1))
         self.render.setLight(self.render.attachNewNode(ambient))
 
         sun = DirectionalLight("low-sun")
-        sun.setColor((1.18, 0.96, 0.68, 1))
+        sun.setColor((1.55, 1.18, 0.72, 1))
         sun_path = self.render.attachNewNode(sun)
         sun_path.setHpr(-42, -48, 0)
         self.render.setLight(sun_path)
 
         fill = DirectionalLight("cool-fill")
-        fill.setColor((0.13, 0.22, 0.34, 1))
+        fill.setColor((0.05, 0.09, 0.14, 1))
         fill_path = self.render.attachNewNode(fill)
         fill_path.setHpr(130, -28, 0)
         self.render.setLight(fill_path)
 
         rim = DirectionalLight("forest-rim")
-        rim.setColor((0.16, 0.26, 0.18, 1))
+        rim.setColor((0.08, 0.16, 0.1, 1))
         rim_path = self.render.attachNewNode(rim)
         rim_path.setHpr(55, -18, 0)
         self.render.setLight(rim_path)
@@ -2543,12 +4043,12 @@ class SwordfishGame(ShowBase):
     def _build_ui(self):
         self.status_frame = DirectFrame(
             frameColor=(0.025, 0.035, 0.032, 0.58),
-            frameSize=(-1.36, -0.14, 0.67, 0.98),
+            frameSize=(0.14, 1.36, 0.67, 0.98),
             pos=(0, 0, 0),
         )
         self.weapon_frame = DirectFrame(
             frameColor=(0.025, 0.04, 0.05, 0.54),
-            frameSize=(-1.36, -0.08, 0.47, 0.72),
+            frameSize=(-1.36, -0.08, 0.34, 0.72),
             pos=(0, 0, 0),
         )
         self.prompt_frame = DirectFrame(
@@ -2558,12 +4058,58 @@ class SwordfishGame(ShowBase):
         )
         self.log_frame = DirectFrame(
             frameColor=(0.025, 0.025, 0.028, 0.48),
-            frameSize=(-1.36, -0.04, -0.92, -0.51),
+            frameSize=(0.04, 1.36, -0.92, -0.51),
+            pos=(0, 0, 0),
+        )
+        self.health_bar_text = OnscreenText(
+            text="Health",
+            pos=(0.18, 0.93),
+            scale=0.032,
+            align=TextNode.ALeft,
+            fg=(0.95, 0.96, 0.88, 1),
+            mayChange=False,
+        )
+        DirectFrame(
+            frameColor=(0.06, 0.025, 0.025, 0.84),
+            frameSize=(0.34, 1.24, 0.885, 0.94),
+            pos=(0, 0, 0),
+        )
+        self.health_bar_fill = DirectFrame(
+            frameColor=(0.9, 0.16, 0.13, 0.92),
+            frameSize=(0.345, 1.235, 0.89, 0.935),
+            pos=(0, 0, 0),
+        )
+        DirectFrame(
+            frameColor=(0.92, 0.96, 0.88, 0.28),
+            frameSize=(0.33, 1.25, 0.875, 0.95),
+            pos=(0, 0, 0),
+        )
+        self.stamina_bar_text = OnscreenText(
+            text="Stamina",
+            pos=(0.18, 0.84),
+            scale=0.032,
+            align=TextNode.ALeft,
+            fg=(0.95, 0.96, 0.88, 1),
+            mayChange=False,
+        )
+        DirectFrame(
+            frameColor=(0.025, 0.055, 0.025, 0.84),
+            frameSize=(0.34, 1.24, 0.795, 0.85),
+            pos=(0, 0, 0),
+        )
+        self.stamina_bar_fill = DirectFrame(
+            frameColor=(0.22, 0.82, 0.28, 0.92),
+            frameSize=(0.345, 1.235, 0.8, 0.845),
+            pos=(0, 0, 0),
+        )
+        DirectFrame(
+            frameColor=(0.92, 0.96, 0.88, 0.22),
+            frameSize=(0.33, 1.25, 0.785, 0.86),
             pos=(0, 0, 0),
         )
         self.status_text = OnscreenText(
             text="",
-            pos=(-1.32, 0.92),
+            pos=(0.18, 0.73),
             scale=0.039,
             align=TextNode.ALeft,
             fg=(0.95, 0.96, 0.88, 1),
@@ -2595,7 +4141,7 @@ class SwordfishGame(ShowBase):
         )
         self.log_text = OnscreenText(
             text="",
-            pos=(-1.32, -0.55),
+            pos=(0.08, -0.55),
             scale=0.036,
             align=TextNode.ALeft,
             fg=(0.92, 0.92, 0.92, 1),
@@ -2665,14 +4211,14 @@ class SwordfishGame(ShowBase):
     def _build_forge_ui(self):
         self.forge_frame = DirectFrame(
             frameColor=(0.04, 0.028, 0.02, 0.9),
-            frameSize=(-0.58, 0.58, -0.48, 0.48),
+            frameSize=(-0.62, 0.62, -0.66, 0.52),
             pos=(0.68, 0, 0.15),
         )
         self.forge_title = OnscreenText(
             text="",
             parent=self.forge_frame,
-            pos=(-0.52, 0.37),
-            scale=0.052,
+            pos=(-0.56, 0.42),
+            scale=0.048,
             align=TextNode.ALeft,
             fg=(1.0, 0.62, 0.28, 1),
             mayChange=True,
@@ -2680,8 +4226,8 @@ class SwordfishGame(ShowBase):
         self.forge_body = OnscreenText(
             text="",
             parent=self.forge_frame,
-            pos=(-0.52, 0.22),
-            scale=0.032,
+            pos=(-0.56, 0.27),
+            scale=0.026,
             align=TextNode.ALeft,
             fg=(0.94, 0.88, 0.78, 1),
             mayChange=True,
@@ -2691,7 +4237,9 @@ class SwordfishGame(ShowBase):
     def _update(self, task):
         dt = min(globalClock.getDt(), 0.05)
         self.attack_cooldown = max(0.0, self.attack_cooldown - dt)
+        self.weapon_ability_cooldown = max(0.0, self.weapon_ability_cooldown - dt)
         self.dodge_cooldown = max(0.0, self.dodge_cooldown - dt)
+        self._update_stamina(dt)
         self.catch_banner_timer = max(0.0, self.catch_banner_timer - dt)
         self.water_bump_cooldown = max(0.0, self.water_bump_cooldown - dt)
         if self.shop_open and self._distance_to_shop() > SHOP_RANGE + 0.45:
@@ -2704,7 +4252,10 @@ class SwordfishGame(ShowBase):
         self._update_fishing(dt)
         self._update_world_details()
         self._update_enemies(dt)
+        self._update_mob_respawns(dt)
+        self._update_pet(dt)
         self._update_hp_regen(dt)
+        self._update_ranged_shots(dt)
         self._update_hit_effects(dt)
         self._update_swing(dt)
         self._update_camera()
@@ -2734,8 +4285,28 @@ class SwordfishGame(ShowBase):
             self.hp_regen_timer -= HP_REGEN_INTERVAL
             self.player_hp = min(self.player_max_hp, self.player_hp + HP_REGEN_AMOUNT)
 
+    def _spend_stamina(self, amount: float) -> bool:
+        if self.player_stamina < amount:
+            return False
+        self.player_stamina = max(0.0, self.player_stamina - amount)
+        self.stamina_regen_cooldown = STAMINA_REGEN_DELAY
+        return True
+
+    def _update_stamina(self, dt: float):
+        if self.player_hp <= 0 or self.is_death_sequence:
+            return
+        if self.stamina_regen_cooldown > 0.0:
+            self.stamina_regen_cooldown = max(0.0, self.stamina_regen_cooldown - dt)
+            return
+        if self.player_stamina < self.player_max_stamina:
+            self.player_stamina = min(
+                self.player_max_stamina,
+                self.player_stamina + STAMINA_REGEN_RATE * dt,
+            )
+
     def _move_player(self, dt: float):
         self.is_player_moving = False
+        self.is_sprinting = False
         if self.player_hp <= 0:
             return
 
@@ -2761,6 +4332,18 @@ class SwordfishGame(ShowBase):
 
             movement.normalize()
             speed = PLAYER_SPEED
+            if (
+                self.sprint_held
+                and self.player_stamina >= SPRINT_MIN_STAMINA
+                and self.fishing_state == "idle"
+            ):
+                speed *= SPRINT_SPEED_MULTIPLIER
+                self.player_stamina = max(
+                    0.0,
+                    self.player_stamina - SPRINT_STAMINA_DRAIN * dt,
+                )
+                self.stamina_regen_cooldown = STAMINA_REGEN_DELAY
+                self.is_sprinting = True
 
         old_pos = self.player.getPos()
         new_pos = old_pos + movement * speed * dt
@@ -2782,6 +4365,13 @@ class SwordfishGame(ShowBase):
                 self._log("The lake is too deep to walk into.")
         self.player.setPos(new_pos)
         self.is_player_moving = (new_pos - old_pos).length() > 0.01
+        if self.is_sprinting and self.is_player_moving:
+            self.sprint_dust_timer = max(0.0, self.sprint_dust_timer - dt)
+            if self.sprint_dust_timer == 0.0:
+                self.sprint_dust_timer = SPRINT_DUST_INTERVAL
+                self._spawn_sprint_dust(movement)
+        else:
+            self.sprint_dust_timer = 0.0
 
         heading = math.degrees(math.atan2(-movement.getX(), movement.getY()))
         self.player.setH(heading)
@@ -2799,36 +4389,172 @@ class SwordfishGame(ShowBase):
             self.player.setZ(math.sin(progress * math.pi) * 0.35)
             self.left_leg.setP(52.0)
             self.right_leg.setP(52.0)
-            self.left_arm.setHpr(44, -4, -12)
+            self.left_arm.setHpr(24, -18, -12)
             if self.right_arm is not None:
-                self.right_arm.setHpr(-44, -4, 12)
+                self.right_arm.setHpr(-26, -18, 12)
             return
 
         if self.is_player_moving and self.player_hp > 0:
-            self.walk_time += dt * 9.5
+            stride_speed = 14.0 if self.is_sprinting else 9.5
+            stride_power = 1.25 if self.is_sprinting else 1.0
+            self.walk_time += dt * stride_speed
             stride = math.sin(self.walk_time)
             counter_stride = math.sin(self.walk_time + math.pi)
-            bounce = abs(math.sin(self.walk_time)) * 0.055
-            lean = math.sin(self.walk_time * 0.5) * 1.5
+            bounce = abs(math.sin(self.walk_time)) * (0.075 if self.is_sprinting else 0.055)
+            lean = math.sin(self.walk_time * 0.5) * (2.5 if self.is_sprinting else 1.5)
             self.player.setZ(bounce)
-            self.player.setP(-2.0 - bounce * 10.0)
+            self.player.setP((-4.0 if self.is_sprinting else -2.0) - bounce * 10.0)
             self.player.setR(lean)
-            self.left_leg.setP(stride * 21.0)
-            self.right_leg.setP(counter_stride * 21.0)
-            self.left_leg.setR(counter_stride * 4.0)
-            self.right_leg.setR(stride * 4.0)
-            self.left_arm.setHpr(16 + counter_stride * 14.0, -4, -12)
+            self.left_leg.setP(stride * 21.0 * stride_power)
+            self.right_leg.setP(counter_stride * 21.0 * stride_power)
+            self.left_leg.setR(counter_stride * 4.0 * stride_power)
+            self.right_leg.setR(stride * 4.0 * stride_power)
+            self.left_arm.setHpr(8 + counter_stride * 8.0 * stride_power, -9, -8)
             if self.swing_time <= 0.0 and self.right_arm is not None:
-                self.right_arm.setHpr(-16 + stride * 12.0, -4, 12)
+                self.right_arm.setHpr(-10 + stride * 7.0 * stride_power, -12, 8)
+            visual_step = abs(stride)
+            self._set_imported_player_pose(
+                heading_offset=stride * (3.5 if self.is_sprinting else 2.5),
+                pitch_offset=(-4.0 if self.is_sprinting else -2.4) + visual_step * 2.0,
+                roll_offset=counter_stride * (4.0 if self.is_sprinting else 2.8),
+                z_offset=visual_step * (0.055 if self.is_sprinting else 0.038),
+            )
         else:
             self.player.setZ(0)
             self.player.setP(0)
             self.player.setR(0)
             self.left_leg.setHpr(0, 0, 0)
             self.right_leg.setHpr(0, 0, 0)
-            self.left_arm.setHpr(16, -4, -12)
+            self.left_arm.setHpr(8, -9, -8)
             if self.swing_time <= 0.0 and self.right_arm is not None:
-                self.right_arm.setHpr(-16, -4, 12)
+                self.right_arm.setHpr(-10, -12, 8)
+            idle_breath = math.sin(self.fishing_phase * 1.8) * 0.7
+            self._set_imported_player_pose(
+                pitch_offset=idle_breath,
+                z_offset=(idle_breath + 0.7) * 0.008,
+            )
+
+    def _update_pet(self, dt: float):
+        if self.pet is None:
+            return
+
+        self.pet_attack_cooldown = max(0.0, self.pet_attack_cooldown - dt)
+        player_pos = self.player.getPos()
+        pet_pos = self.pet.getPos()
+        target = self._nearest_pet_target()
+
+        if self.player_hp <= 0:
+            desired = player_pos + Vec3(-0.8, -0.85, 0)
+        elif target is not None and (target.node.getPos() - pet_pos).length() <= PET_SENSE_RANGE:
+            desired = target.node.getPos()
+        else:
+            heading = math.radians(self.player.getH())
+            backward = Vec3(math.sin(heading), -math.cos(heading), 0)
+            right = Vec3(math.cos(heading), math.sin(heading), 0)
+            desired = player_pos + backward * PET_FOLLOW_DISTANCE + right * -0.75
+
+        to_goal = desired - pet_pos
+        to_goal.setZ(0)
+        distance = to_goal.length()
+        moving = False
+        if distance > 0.15:
+            direction = Vec3(to_goal)
+            direction.normalize()
+            step = min(distance, PET_SPEED * dt)
+            self.pet.setPos(pet_pos + direction * step)
+            self.pet.setH(math.degrees(math.atan2(-direction.getX(), direction.getY())))
+            moving = True
+
+        self._animate_pet(dt, moving)
+
+        if (
+            target is not None
+            and self.player_hp > 0
+            and self.pet_attack_cooldown == 0.0
+            and (target.node.getPos() - self.pet.getPos()).length() <= PET_ATTACK_RANGE
+        ):
+            self._pet_attack(target)
+
+    def _nearest_pet_target(self) -> Optional[SceneEnemy]:
+        if not self.enemies or self.pet is None:
+            return None
+        pet_pos = self.pet.getPos()
+        candidates = [
+            ((enemy.node.getPos() - pet_pos).length(), enemy)
+            for enemy in self.enemies
+            if (enemy.node.getPos() - pet_pos).length() <= PET_SENSE_RANGE
+        ]
+        if not candidates:
+            return None
+        candidates.sort(key=lambda item: item[0])
+        return candidates[0][1]
+
+    def _animate_pet(self, dt: float, moving: bool):
+        self.pet_walk_time += dt * (9.0 if moving else 3.0)
+        wave = math.sin(self.pet_walk_time)
+        bounce = abs(wave) * 0.055 if moving else math.sin(self.pet_walk_time) * 0.015
+        if self.pet_visual is not None:
+            self.pet_visual.setZ(bounce)
+            self.pet_visual.setP(wave * 2.5 if moving else 0)
+        if self.pet_head is not None:
+            self.pet_head.setP(-4.0 + wave * (4.0 if moving else 2.0))
+        if self.pet_tail is not None:
+            self.pet_tail.setH(wave * (24.0 if moving else 14.0))
+        if self.pet_left_foot is not None:
+            self.pet_left_foot.setP(wave * 16.0 if moving else 0)
+        if self.pet_right_foot is not None:
+            self.pet_right_foot.setP(-wave * 16.0 if moving else 0)
+
+    def _pet_attack(self, target: SceneEnemy):
+        if target not in self.enemies or self.pet is None:
+            return
+
+        self.pet_attack_cooldown = PET_ATTACK_COOLDOWN
+        direction = target.node.getPos() - self.pet.getPos()
+        direction.setZ(0)
+        if direction.length() == 0:
+            direction = Vec3(0, 1, 0)
+        else:
+            direction.normalize()
+        self.pet.setH(math.degrees(math.atan2(-direction.getX(), direction.getY())))
+
+        target.hp = max(0, target.hp - PET_ATTACK_DAMAGE)
+        target.flash_time = 0.18
+        target.knockback_velocity = direction * 7.0
+        target.node.setColorScale(1.35, 0.58, 0.34, 1)
+        self._spawn_pet_claw_effect(target.node.getPos() + Vec3(0, 0, 0.58), direction)
+        if target.kind == "rabbit":
+            self._spawn_rabbit_hit_effects(target, direction)
+        self._log(f"Your tiger cub pounces for {PET_ATTACK_DAMAGE}.")
+
+        if target.hp == 0:
+            reward = gold_reward_for_enemy(target.kind)
+            if reward:
+                self.gold += reward
+                self._spawn_gold_reward_effect(target.node.getPos(), reward)
+                self._log(f"Your tiger cub finds {reward} gold coins.")
+            if target.kind == "rabbit":
+                self._spawn_rabbit_defeat_effects(target)
+            target.node.removeNode()
+            self.enemies.remove(target)
+
+    def _spawn_pet_claw_effect(self, pos: Vec3, direction: Vec3):
+        sideways = Vec3(-direction.getY(), direction.getX(), 0)
+        if sideways.length() == 0:
+            sideways = Vec3(1, 0, 0)
+        else:
+            sideways.normalize()
+        for index, offset in enumerate((-0.16, 0.0, 0.16)):
+            self._spawn_hit_piece(
+                name=f"pet-claw-{index}",
+                size=(0.24, 0.035, 0.045),
+                color=(1.0, 0.74, 0.32, 0.72),
+                pos=pos + sideways * offset,
+                velocity=direction * self.rng.uniform(1.8, 2.8)
+                + sideways * offset * 2.0
+                + Vec3(0, 0, self.rng.uniform(1.0, 1.8)),
+                lifetime=0.32,
+            )
 
     def _start_death_sequence(self):
         if self.is_death_sequence:
@@ -2859,6 +4585,11 @@ class SwordfishGame(ShowBase):
         self.player.setZ(-0.05 + settle * 0.06)
         self.player.setP(-82.0 * fall)
         self.player.setR(24.0 * fall)
+        self._set_imported_player_pose(
+            heading_offset=fall * 10.0,
+            pitch_offset=-fall * 8.0,
+            roll_offset=fall * 6.0,
+        )
         if self.left_arm:
             self.left_arm.setHpr(8.0, -22.0 * fall, -55.0 * fall)
         if self.right_arm:
@@ -2965,6 +4696,67 @@ class SwordfishGame(ShowBase):
                 self._update_wisp(enemy, player_pos, enemy_pos, dt)
             else:
                 self._update_monster(enemy, player_pos, enemy_pos, dt)
+
+    def _update_mob_respawns(self, dt: float):
+        if self.player_hp <= 0 or self.is_death_sequence:
+            return
+
+        self.mob_respawn_timer = max(0.0, self.mob_respawn_timer - dt)
+        if self.mob_respawn_timer > 0.0:
+            return
+
+        self.mob_respawn_timer = MOB_RESPAWN_INTERVAL
+        respawned = self._top_up_roaming_mobs()
+        respawned += self._top_up_chest_guards()
+        if respawned:
+            self._log("The wilds stir. Fresh mobs return to the map.")
+
+    def _top_up_roaming_mobs(self) -> int:
+        counts = {kind: 0 for kind in FIELD_MOB_TARGETS}
+        for enemy in self.enemies:
+            if enemy.kind in counts and enemy.bounds is None:
+                counts[enemy.kind] += 1
+
+        spawned = 0
+        for kind, target in FIELD_MOB_TARGETS.items():
+            missing = max(0, target - counts[kind])
+            for _ in range(missing):
+                self._spawn_single_roaming_mob(kind)
+                spawned += 1
+        return spawned
+
+    def _spawn_single_roaming_mob(self, kind: str):
+        spawn_index = len(self.enemies) + self.fish_count + 1
+        if kind == "bird":
+            self.enemies.append(self._make_bird(spawn_index, self._random_field_position()))
+        elif kind == "boar":
+            self.enemies.append(self._make_boar(spawn_index, self._random_field_position()))
+        elif kind == "snapper":
+            self.enemies.append(self._make_snapper(spawn_index, self._random_field_position()))
+        elif kind == "wisp":
+            self.enemies.append(self._make_wisp(spawn_index, self._random_field_position()))
+        else:
+            self.enemies.append(self._make_rabbit(spawn_index, self._random_arena_position()))
+
+    def _top_up_chest_guards(self) -> int:
+        spawned = 0
+        for index, chest in enumerate(self.chests):
+            if chest.opened or self._chest_has_living_guard(chest):
+                continue
+            before = len(self.enemies)
+            self._spawn_chest_guards(index, chest.pos, chest.guard_kind, bounds=chest.guard_bounds)
+            spawned += len(self.enemies) - before
+        return spawned
+
+    def _chest_has_living_guard(self, chest: SceneChest) -> bool:
+        for enemy in self.enemies:
+            if enemy.bounds is None:
+                continue
+            home_to_chest = enemy.home_pos - chest.pos
+            home_to_chest.setZ(0)
+            if home_to_chest.length() <= 2.8:
+                return True
+        return False
 
     def _player_in_safe_zone(self) -> bool:
         """Check if the player is near the pond/dock or the rod shop."""
@@ -3646,6 +5438,8 @@ class SwordfishGame(ShowBase):
             chest = self._nearest_chest()
             if chest is not None:
                 self._try_open_chest(chest)
+            elif self._distance_to_nearest_raft() <= SHOP_RANGE:
+                self._use_raft()
             elif self._distance_to_shop() <= SHOP_RANGE:
                 self.shop_open = not self.shop_open
                 self.forge_open = False
@@ -3659,7 +5453,7 @@ class SwordfishGame(ShowBase):
                 self.shop_open = False
                 if self.forge_open:
                     self.inspect_open = False
-                    self._log("The armorer opens the forge rack. Press 1-4 to choose armor.")
+                    self._log("The armorer opens the forge rack. Press 1-7 to choose armor.")
                 else:
                     self._log("You close the forge menu.")
             else:
@@ -3679,6 +5473,41 @@ class SwordfishGame(ShowBase):
 
     def _distance_to_forge(self) -> float:
         return (self.player.getPos() - FORGE_SPOT).length()
+
+    def _distance_to_nearest_raft(self) -> float:
+        player_pos = self.player.getPos()
+        return min(
+            (player_pos - HOME_RAFT_SPOT).length(),
+            (player_pos - LEVEL2_RAFT_SPOT).length(),
+        )
+
+    def _use_raft(self):
+        player_pos = self.player.getPos()
+        if (player_pos - LEVEL2_RAFT_SPOT).length() <= SHOP_RANGE:
+            destination = Vec3(0, 3.0, 0)
+            message = "The raft carries you back to the old dock."
+        else:
+            destination = Vec3(LEVEL2_ARRIVAL_SPOT)
+            message = "The raft creaks across the deep water to the level 2 shore."
+
+        self.shop_open = False
+        self.forge_open = False
+        self.inspect_open = False
+        self.player.setPos(destination)
+        self.player.setH(0)
+        self._clear_fishing_visuals()
+        self.fishing_state = "idle"
+        self._set_catch_banner("Raft crossing")
+        self._log(message)
+
+    def _nearest_fishing_spot(self) -> Tuple[str, Vec3, float]:
+        player_pos = self.player.getPos()
+        spots = (
+            ("lake", self.fishing_spot, (player_pos - self.fishing_spot).length()),
+            ("cave pool", self.cave_fishing_spot, (player_pos - self.cave_fishing_spot).length()),
+            ("level 2 lake", self.level2_fishing_spot, (player_pos - self.level2_fishing_spot).length()),
+        )
+        return min(spots, key=lambda item: item[2])
 
     def _nearest_chest(self) -> Optional[SceneChest]:
         player_pos = self.player.getPos()
@@ -3792,10 +5621,11 @@ class SwordfishGame(ShowBase):
         self._update_inspection_ui()
 
     def _start_fishing_cast(self):
-        distance = (self.player.getPos() - self.fishing_spot).length()
+        spot_name, _spot_pos, distance = self._nearest_fishing_spot()
         if distance > FISHING_RANGE:
-            self._log("The lake is too far away to cast.")
+            self._log("The water is too far away to cast.")
             return
+        self.active_fishing_spot_name = spot_name
 
         self.inspect_open = False
         self._clear_inspection_preview()
@@ -3803,11 +5633,24 @@ class SwordfishGame(ShowBase):
 
         player_pos = self.player.getPos()
         self.cast_start_pos = Vec3(player_pos.getX(), player_pos.getY() + 0.8, 0.9)
-        self.cast_target_pos = Vec3(
-            max(-8.0, min(8.0, player_pos.getX() + self.rng.uniform(-2.2, 2.2))),
-            self.rng.uniform(8.2, 12.8),
-            0.18,
-        )
+        if spot_name == "cave pool":
+            self.cast_target_pos = Vec3(
+                CAVE_POOL_CENTER.getX() + self.rng.uniform(-2.2, 2.2),
+                CAVE_POOL_CENTER.getY() + self.rng.uniform(-1.2, 1.2),
+                0.18,
+            )
+        elif spot_name == "level 2 lake":
+            self.cast_target_pos = Vec3(
+                LEVEL2_LAKE_CENTER.getX() + self.rng.uniform(-4.2, 4.2),
+                LEVEL2_LAKE_CENTER.getY() + self.rng.uniform(-2.8, 2.8),
+                0.18,
+            )
+        else:
+            self.cast_target_pos = Vec3(
+                max(-8.0, min(8.0, player_pos.getX() + self.rng.uniform(-2.2, 2.2))),
+                self.rng.uniform(8.2, 12.8),
+                0.18,
+            )
         self.fishing_state = "casting"
         self.fishing_timer = 0.0
         self.fishing_phase = 0.0
@@ -3815,7 +5658,12 @@ class SwordfishGame(ShowBase):
         self._clear_fishing_visuals()
         self.shop_open = False
         self._create_bobber(self.cast_start_pos)
-        self._log(f"You cast with the {fishing_rod_for_tier(self.rod_tier).name}.")
+        if spot_name == "cave pool":
+            self._log(f"You cast into the glowing cave pool with the {fishing_rod_for_tier(self.rod_tier).name}.")
+        elif spot_name == "level 2 lake":
+            self._log(f"You cast into the level 2 lake. Stronger relics tug below.")
+        else:
+            self._log(f"You cast with the {fishing_rod_for_tier(self.rod_tier).name}.")
 
     def _update_fishing(self, dt: float):
         self.fishing_phase += dt
@@ -3881,7 +5729,17 @@ class SwordfishGame(ShowBase):
         self.fishing_timer = 0.55
 
     def _complete_fishing_success(self):
-        self.current_weapon = generate_weapon(self.rng, self.rod_tier)
+        effective_rod_tier = self.rod_tier
+        if self.active_fishing_spot_name == "level 2 lake":
+            effective_rod_tier = min(len(FISHING_RODS) - 1, self.rod_tier + 3)
+            for attempt in range(4):
+                self.current_weapon = generate_weapon(self.rng, effective_rod_tier)
+                if self.current_weapon.rarity in {"relic", "mythic"} or attempt == 3:
+                    break
+        else:
+            self.current_weapon = generate_weapon(self.rng, effective_rod_tier)
+        if self.active_fishing_spot_name == "level 2 lake":
+            self.current_weapon.base_damage += 3
         self._build_weapon_model(self.current_weapon)
         self.fish_count += 1
         hidden_count = self.current_weapon.hidden_trait_count()
@@ -3897,6 +5755,26 @@ class SwordfishGame(ShowBase):
             self.spawn_monster()
         else:
             self.spawn_rabbits(3)
+        if self.active_fishing_spot_name == "cave pool":
+            self.spawn_wisps(1)
+        elif self.active_fishing_spot_name == "level 2 lake":
+            self._spawn_level2_lake_ambush()
+
+    def _spawn_level2_lake_ambush(self):
+        choices = (
+            ("snapper", LEVEL2_LAKE_CENTER + Vec3(-8.0, 3.0, 0)),
+            ("wisp", LEVEL2_LAKE_CENTER + Vec3(8.0, -2.5, 0)),
+            ("monster", LEVEL2_LAKE_CENTER + Vec3(0.0, -8.0, 0)),
+        )
+        kind, pos = choices[self.fish_count % len(choices)]
+        if kind == "snapper":
+            enemy = self._make_snapper(1200 + self.fish_count, pos)
+        elif kind == "wisp":
+            enemy = self._make_wisp(1200 + self.fish_count, pos)
+        else:
+            enemy = self._make_monster(pos)
+        self.enemies.append(self._toughen_level2_enemy(enemy))
+        self._log("Something tougher rises near the level 2 lake.")
 
     def _create_bobber(self, pos: Vec3):
         self.bobber_node = self.render.attachNewNode("cast-bobber")
@@ -4023,6 +5901,9 @@ class SwordfishGame(ShowBase):
             return
         if self.dodge_time > 0.0 or self.dodge_cooldown > 0.0:
             return
+        if not self._spend_stamina(DODGE_STAMINA_COST):
+            self._log("Too tired to dodge.")
+            return
 
         move_x = 0.0
         move_y = 0.0
@@ -4044,7 +5925,58 @@ class SwordfishGame(ShowBase):
         self.dodge_direction = direction
         self.dodge_time = DODGE_DURATION
         self.dodge_cooldown = DODGE_COOLDOWN
+        self._spawn_dodge_dust(direction)
         self._log("You dodge-roll.")
+
+    def _spawn_dodge_dust(self, direction: Vec3):
+        origin = self.player.getPos() + Vec3(0, 0, 0.12)
+        backward = direction * -1.0
+        sideways = Vec3(-direction.getY(), direction.getX(), 0)
+        if sideways.length() == 0:
+            sideways = Vec3(1, 0, 0)
+        else:
+            sideways.normalize()
+
+        for index in range(8):
+            spray = (
+                backward * self.rng.uniform(1.2, 2.8)
+                + sideways * self.rng.uniform(-1.8, 1.8)
+                + Vec3(0, 0, self.rng.uniform(0.7, 1.8))
+            )
+            self._spawn_hit_piece(
+                name=f"dodge-dust-{index}",
+                size=(
+                    self.rng.uniform(0.12, 0.22),
+                    self.rng.uniform(0.08, 0.18),
+                    self.rng.uniform(0.045, 0.09),
+                ),
+                color=(0.54, 0.44, 0.3, self.rng.uniform(0.42, 0.68)),
+                pos=origin + backward * 0.28 + sideways * self.rng.uniform(-0.22, 0.22),
+                velocity=spray,
+                lifetime=self.rng.uniform(0.32, 0.52),
+            )
+
+    def _spawn_sprint_dust(self, direction: Vec3):
+        origin = self.player.getPos() + Vec3(0, 0, 0.08)
+        backward = direction * -1.0
+        sideways = Vec3(-direction.getY(), direction.getX(), 0)
+        if sideways.length() == 0:
+            sideways = Vec3(1, 0, 0)
+        else:
+            sideways.normalize()
+
+        for index in range(2):
+            side = -1.0 if index == 0 else 1.0
+            self._spawn_hit_piece(
+                name=f"sprint-dust-{index}",
+                size=(0.11, 0.06, 0.045),
+                color=(0.62, 0.54, 0.38, 0.46),
+                pos=origin + backward * 0.32 + sideways * side * self.rng.uniform(0.12, 0.24),
+                velocity=backward * self.rng.uniform(0.9, 1.5)
+                + sideways * side * self.rng.uniform(0.2, 0.55)
+                + Vec3(0, 0, self.rng.uniform(0.25, 0.55)),
+                lifetime=self.rng.uniform(0.18, 0.28),
+            )
 
     def _player_is_invulnerable(self) -> bool:
         return self.dodge_time > 0.0
@@ -4060,17 +5992,18 @@ class SwordfishGame(ShowBase):
             return
         if self.current_weapon is None:
             self._log("Your hands are empty. The lake may fix that.")
-            self.attack_cooldown = 0.45
+            self.attack_cooldown = 0.12
             return
 
         self._start_swing()
         targets = self._enemies_in_attack_range()
         if not targets:
             if is_ranged_weapon(self.current_weapon):
+                self._spawn_ranged_shot()
                 self._log(f"{self.current_weapon.name} fires into empty air.")
             else:
                 self._log(f"{self.current_weapon.name} cuts only air.")
-            self.attack_cooldown = 0.45
+            self.attack_cooldown = 0.08
             return
 
         if len(targets) > 1:
@@ -4084,45 +6017,10 @@ class SwordfishGame(ShowBase):
             if target not in self.enemies:
                 continue
 
-            enemy_state = EnemyState(
-                name=target.name,
-                kind=target.kind,
-                hp=target.hp,
-                max_hp=target.max_hp,
-            )
-            result = resolve_attack(self.current_weapon, enemy_state, self.rng)
-            target.hp = result.enemy_hp_after
-            self.player_hp = min(self.player_max_hp, self.player_hp + result.healing)
-            self.player_hp = max(0, self.player_hp - result.self_damage)
+            if is_ranged_weapon(self.current_weapon):
+                self._spawn_ranged_shot(target)
 
-            for message in result.messages[-2:]:
-                self._log(message)
-
-            newly_revealed = discover_traits(self.current_weapon, result.discovered_traits)
-            for trait_name in newly_revealed:
-                self._log(f"Discovered weapon power: {trait_name}.")
-            any_revealed = any_revealed or bool(newly_revealed)
-
-            if result.healing:
-                self._log(f"You recover {result.healing} health.")
-            if result.self_damage:
-                self._pause_hp_regen()
-                self._log(f"The weapon hurts you for {result.self_damage}.")
-            if self.player_hp == 0:
-                self._start_death_sequence()
-
-            self._apply_hit_feedback(target)
-
-            if result.defeated:
-                reward = gold_reward_for_enemy(target.kind)
-                if reward:
-                    self.gold += reward
-                    self._spawn_gold_reward_effect(target.node.getPos(), reward)
-                    self._log(f"You collect {reward} gold coins.")
-                if target.kind == "rabbit":
-                    self._spawn_rabbit_defeat_effects(target)
-                target.node.removeNode()
-                self.enemies.remove(target)
+            any_revealed = self._resolve_weapon_hit(target) or any_revealed
 
             if self.player_hp == 0:
                 break
@@ -4131,7 +6029,238 @@ class SwordfishGame(ShowBase):
             self._update_inspection_ui()
             self._log("Press I to inspect the updated weapon card.")
 
-        self.attack_cooldown = 0.85
+        self.attack_cooldown = 0.08
+
+    def use_weapon_ability(self):
+        if self.player_hp <= 0:
+            self._log("Respawning soon...")
+            return
+        if self.fishing_state != "idle":
+            self._log("You are busy with the line.")
+            return
+        if self.current_weapon is None:
+            self._log("You need a weapon before you can use an ability.")
+            return
+        if self.weapon_ability_cooldown > 0.0:
+            self._log(f"Ability is recharging: {self.weapon_ability_cooldown:.1f}s.")
+            return
+        if not self._spend_stamina(ABILITY_STAMINA_COST):
+            self._log("Too tired to use the weapon ability.")
+            return
+
+        ability = weapon_ability(self.current_weapon)
+        self._start_swing(powered=True)
+        self._spawn_ability_burst()
+        targets = self._active_ability_targets()
+        if not targets:
+            if is_ranged_weapon(self.current_weapon):
+                self._spawn_ranged_shot(powered=True)
+                self._log(f"{ability.display_name} fires into the distance.")
+            else:
+                self._log(f"{ability.display_name} erupts, but hits nothing.")
+            self.weapon_ability_cooldown = WEAPON_ABILITY_COOLDOWN
+            self.attack_cooldown = 0.7
+            return
+
+        if is_ranged_weapon(self.current_weapon):
+            self._log(f"You unleash {ability.display_name}.")
+        else:
+            self._log(f"{ability.display_name} bursts out in a wide shockwave.")
+
+        any_revealed = False
+        for target in targets:
+            if target not in self.enemies:
+                continue
+            if is_ranged_weapon(self.current_weapon):
+                self._spawn_ranged_shot(target, powered=True)
+            any_revealed = self._resolve_weapon_hit(
+                target,
+                damage_bonus=ACTIVE_DAMAGE_BONUS,
+                bonus_message=f"{ability.display_name} adds {ACTIVE_DAMAGE_BONUS} damage.",
+            ) or any_revealed
+            if self.player_hp == 0:
+                break
+
+        if any_revealed:
+            self._update_inspection_ui()
+            self._log("Press I to inspect the updated weapon card.")
+
+        self.weapon_ability_cooldown = WEAPON_ABILITY_COOLDOWN
+        self.attack_cooldown = 0.9
+
+    def _resolve_weapon_hit(
+        self,
+        target: SceneEnemy,
+        damage_bonus: int = 0,
+        bonus_message: str = "",
+    ) -> bool:
+        if self.current_weapon is None or target not in self.enemies:
+            return False
+
+        enemy_state = EnemyState(
+            name=target.name,
+            kind=target.kind,
+            hp=target.hp,
+            max_hp=target.max_hp,
+        )
+        result = resolve_attack(self.current_weapon, enemy_state, self.rng)
+        target.hp = max(0, result.enemy_hp_after - damage_bonus)
+        self.player_hp = min(self.player_max_hp, self.player_hp + result.healing)
+        self.player_hp = max(0, self.player_hp - result.self_damage)
+
+        for message in result.messages[-2:]:
+            self._log(message)
+        if damage_bonus:
+            self._log(bonus_message or f"The ability adds {damage_bonus} damage.")
+
+        newly_revealed = discover_traits(self.current_weapon, result.discovered_traits)
+        for trait_name in newly_revealed:
+            self._log(f"Discovered weapon power: {trait_name}.")
+
+        if result.healing:
+            self._log(f"You recover {result.healing} health.")
+        if result.self_damage:
+            self._pause_hp_regen()
+            self._log(f"The weapon hurts you for {result.self_damage}.")
+        if self.player_hp == 0:
+            self._start_death_sequence()
+
+        self._apply_hit_feedback(target)
+
+        if target.hp == 0:
+            reward = gold_reward_for_enemy(target.kind)
+            if reward:
+                self.gold += reward
+                self._spawn_gold_reward_effect(target.node.getPos(), reward)
+                self._log(f"You collect {reward} gold coins.")
+            if target.kind == "rabbit":
+                self._spawn_rabbit_defeat_effects(target)
+            target.node.removeNode()
+            self.enemies.remove(target)
+
+        return bool(newly_revealed)
+
+    def _active_ability_targets(self) -> List[SceneEnemy]:
+        if self.current_weapon is None:
+            return []
+
+        player_pos = self.player.getPos()
+        nearby: List[Tuple[float, SceneEnemy]] = []
+        is_ranged = is_ranged_weapon(self.current_weapon)
+        if is_ranged:
+            heading = math.radians(self.player.getH())
+            forward = Vec3(-math.sin(heading), math.cos(heading), 0)
+
+        for enemy in self.enemies:
+            to_enemy = enemy.node.getPos() - player_pos
+            to_enemy.setZ(0)
+            distance = to_enemy.length()
+            if is_ranged:
+                if distance > ACTIVE_RANGED_RANGE:
+                    continue
+                if distance > 0.01:
+                    aim = Vec3(to_enemy)
+                    aim.normalize()
+                    if forward.dot(aim) < -0.05:
+                        continue
+            elif distance > ACTIVE_MELEE_RANGE:
+                continue
+            nearby.append((distance, enemy))
+
+        nearby.sort(key=lambda item: item[0])
+        targets = [enemy for _distance, enemy in nearby]
+        if is_ranged:
+            return targets[:4] if self.current_weapon.weapon_type == "staff" else targets[:3]
+        return targets
+
+    def _spawn_ability_burst(self):
+        if self.current_weapon is None:
+            return
+
+        origin = self.player.getPos() + Vec3(0, 0, 0.7)
+        glow = weapon_glow_color(self.current_weapon)
+        for index in range(14):
+            angle = (math.pi * 2.0 * index) / 14.0
+            outward = Vec3(math.cos(angle), math.sin(angle), 0)
+            self._spawn_hit_piece(
+                name=f"ability-burst-{index}",
+                size=(0.12, 0.12, 0.055),
+                color=glow,
+                pos=origin + outward * 0.22,
+                velocity=outward * self.rng.uniform(2.2, 4.0)
+                + Vec3(0, 0, self.rng.uniform(0.6, 1.5)),
+                lifetime=self.rng.uniform(0.34, 0.58),
+            )
+
+    def _spawn_ranged_shot(self, target: Optional[SceneEnemy] = None, powered: bool = False):
+        if self.current_weapon is None:
+            return
+
+        weapon_type = self.current_weapon.weapon_type
+        glow = weapon_glow_color(self.current_weapon)
+        heading = math.radians(self.player.getH())
+        forward = Vec3(-math.sin(heading), math.cos(heading), 0)
+        right = Vec3(forward.getY(), -forward.getX(), 0)
+        start = self.player.getPos() + forward * 0.85 + right * 0.28 + Vec3(0, 0, 1.05)
+        if target is None:
+            end = start + forward * min(RANGED_ATTACK_RANGE, 7.5)
+        else:
+            end = target.node.getPos() + Vec3(0, 0, 0.68)
+
+        delta = end - start
+        distance = max(0.1, delta.length())
+        direction = Vec3(delta)
+        direction.normalize()
+        speed = 32.0 if powered else 24.0
+        lifetime = max(0.1, min(0.38 if powered else 0.42, distance / speed))
+        velocity = delta * (1.0 / lifetime)
+        shot = self.render.attachNewNode(f"{weapon_type}-shot")
+        shot.setPos(start)
+        horizontal = math.sqrt(delta.getX() * delta.getX() + delta.getY() * delta.getY())
+        shot.setHpr(
+            math.degrees(math.atan2(-delta.getX(), delta.getY())),
+            -math.degrees(math.atan2(delta.getZ(), horizontal)),
+            0,
+        )
+
+        if weapon_type == "staff":
+            orb_size = 0.24 if powered else 0.16
+            make_ellipsoid(
+                shot,
+                "staff-orb-shot",
+                (orb_size, orb_size, orb_size),
+                glow,
+                (0, 0, 0),
+                segments=10,
+                rings=5,
+            )
+            ring = 0.66 if powered else 0.46
+            make_box(shot, "staff-orb-ring-a", (ring, 0.04, 0.04), glow, (0, 0, 0), (0, 0, 35))
+            make_box(shot, "staff-orb-ring-b", (0.04, ring, 0.04), glow, (0, 0, 0), (0, 0, 35))
+            spin = Vec3(0, 0, 760 if powered else 520)
+        elif weapon_type == "crossbow":
+            make_box(shot, "crossbow-bolt-shot", (0.1 if powered else 0.08, 0.96 if powered else 0.76, 0.1 if powered else 0.08), (0.68, 0.62, 0.5, 1), (0, 0.18, 0))
+            make_flat_prism(shot, "crossbow-bolt-shot-head", ((0, 0.72), (0.16, 0.46), (-0.16, 0.46)), 0.16 if powered else 0.12, glow, (0, 0, 0.02))
+            make_box(shot, "crossbow-bolt-shot-trail", (0.26 if powered else 0.18, 0.52 if powered else 0.38, 0.04), glow, (0, -0.25, 0), (0, 0, 35))
+            spin = Vec3(0, 0, 0)
+        else:
+            make_box(shot, "arrow-shot-shaft", (0.07 if powered else 0.055, 1.0 if powered else 0.82, 0.07 if powered else 0.055), (0.55, 0.34, 0.16, 1), (0, 0.18, 0))
+            make_flat_prism(shot, "arrow-shot-head", ((0, 0.78), (0.14, 0.52), (-0.14, 0.52)), 0.13 if powered else 0.1, glow, (0, 0, 0.02))
+            make_box(shot, "arrow-shot-feather-left", (0.18, 0.05, 0.045), (0.92, 0.78, 0.42, 1), (-0.08, -0.23, 0), (0, 0, -24))
+            make_box(shot, "arrow-shot-feather-right", (0.18, 0.05, 0.045), (0.92, 0.78, 0.42, 1), (0.08, -0.23, 0), (0, 0, 24))
+            spin = Vec3(0, 0, 0)
+
+        self.ranged_shots.append(
+            RangedShot(
+                node=shot,
+                velocity=velocity,
+                lifetime=lifetime,
+                max_lifetime=lifetime,
+                spin_rate=spin,
+                impact_pos=Vec3(end),
+                impact_color=glow,
+            )
+        )
 
     def _apply_hit_feedback(self, target: SceneEnemy):
         direction = target.node.getPos() - self.player.getPos()
@@ -4265,6 +6394,42 @@ class SwordfishGame(ShowBase):
             )
         )
 
+    def _update_ranged_shots(self, dt: float):
+        live_shots = []
+        for shot in self.ranged_shots:
+            shot.lifetime -= dt
+            if shot.lifetime <= 0.0:
+                impact_pos = shot.impact_pos
+                impact_color = shot.impact_color
+                shot.node.removeNode()
+                for index in range(3):
+                    self._spawn_hit_piece(
+                        name=f"ranged-impact-{index}",
+                        size=(0.08, 0.08, 0.08),
+                        color=impact_color,
+                        pos=impact_pos,
+                        velocity=Vec3(
+                            self.rng.uniform(-1.2, 1.2),
+                            self.rng.uniform(-1.2, 1.2),
+                            self.rng.uniform(1.4, 2.4),
+                        ),
+                        lifetime=self.rng.uniform(0.28, 0.42),
+                    )
+                continue
+
+            shot.node.setPos(shot.node.getPos() + shot.velocity * dt)
+            hpr = shot.node.getHpr()
+            shot.node.setHpr(
+                hpr.getX() + shot.spin_rate.getX() * dt,
+                hpr.getY() + shot.spin_rate.getY() * dt,
+                hpr.getZ() + shot.spin_rate.getZ() * dt,
+            )
+            fade = max(0.0, min(1.0, shot.lifetime / shot.max_lifetime))
+            shot.node.setColorScale(1, 1, 1, fade)
+            live_shots.append(shot)
+
+        self.ranged_shots = live_shots
+
     def _update_hit_effects(self, dt: float):
         live_effects = []
         for effect in self.hit_effects:
@@ -4304,24 +6469,38 @@ class SwordfishGame(ShowBase):
         for effect in self.hit_effects:
             effect.node.removeNode()
         self.hit_effects.clear()
+        for shot in self.ranged_shots:
+            shot.node.removeNode()
+        self.ranged_shots.clear()
         self.player_hp = self.player_max_hp
         self.hp_regen_cooldown = 0.0
         self.hp_regen_timer = 0.0
+        self.player_stamina = self.player_max_stamina
+        self.stamina_regen_cooldown = 0.0
         self.player.setPos(0, 3.0, 0)
         self.player.setHpr(0, 0, 0)
         self.player.setColorScale(1, 1, 1, 1)
+        if self.pet is not None:
+            self.pet.setPos(-0.9, 2.15, 0)
+            self.pet.setHpr(0, 0, 0)
+            self.pet_attack_cooldown = 0.0
         self.death_timer = 0.0
         self.is_death_sequence = False
         self.attack_cooldown = 0.35
+        self.weapon_ability_cooldown = 0.0
+        self.mob_respawn_timer = MOB_RESPAWN_INTERVAL
         self.is_player_moving = False
         if self.left_arm:
-            self.left_arm.setHpr(16, -4, -12)
+            self.left_arm.setHpr(8, -9, -8)
         if self.right_arm:
-            self.right_arm.setHpr(-16, -4, 12)
+            self.right_arm.setHpr(-10, -12, 8)
+        if self.weapon_pivot:
+            self.weapon_pivot.setHpr(4, 18, -8)
         if self.left_leg:
             self.left_leg.setHpr(0, 0, 0)
         if self.right_leg:
             self.right_leg.setHpr(0, 0, 0)
+        self._set_imported_player_pose()
         self.spawn_rabbits(4)
         self._spawn_field_mobs()
         self._respawn_chest_guards()
@@ -4338,11 +6517,16 @@ class SwordfishGame(ShowBase):
                     index, chest.pos, chest.guard_kind, bounds=chest.guard_bounds
                 )
 
+    def _random_arena_position(self) -> Vec3:
+        return Vec3(
+            self.rng.uniform(ARENA_MIN_X + 1.6, ARENA_MAX_X - 1.6),
+            self.rng.uniform(ARENA_MIN_Y + 0.8, ARENA_MAX_Y - 1.2),
+            0,
+        )
+
     def spawn_rabbits(self, count: int = 3):
         for index in range(count):
-            x = self.rng.uniform(-6.5, 6.5)
-            y = self.rng.uniform(-12.4, -5.2)
-            self.enemies.append(self._make_rabbit(index + 1, Vec3(x, y, 0)))
+            self.enemies.append(self._make_rabbit(index + 1, self._random_arena_position()))
         self._log(f"{count} white rabbits skitter into the arena.")
 
     def spawn_monster(self):
@@ -4376,8 +6560,8 @@ class SwordfishGame(ShowBase):
         return SceneEnemy(
             name="Rabid White Rabbit",
             kind="rabbit",
-            hp=18,
-            max_hp=18,
+            hp=20,
+            max_hp=20,
             node=root,
             speed=2.4,
             contact_damage=2,
@@ -4437,11 +6621,11 @@ class SwordfishGame(ShowBase):
         return SceneEnemy(
             name="Mire Grub",
             kind="monster",
-            hp=42,
-            max_hp=42,
+            hp=48,
+            max_hp=48,
             node=root,
             speed=1.2,
-            contact_damage=5,
+            contact_damage=6,
             visual_node=visual,
             body_node=body,
             head_node=head,
@@ -4478,11 +6662,11 @@ class SwordfishGame(ShowBase):
         return SceneEnemy(
             name="Carrion Gull",
             kind="bird",
-            hp=14,
-            max_hp=14,
+            hp=18,
+            max_hp=18,
             node=root,
             speed=3.4,
-            contact_damage=3,
+            contact_damage=4,
             visual_node=visual,
             body_node=body,
             head_node=head,
@@ -4526,11 +6710,11 @@ class SwordfishGame(ShowBase):
         return SceneEnemy(
             name="Bramble Boar",
             kind="boar",
-            hp=34,
-            max_hp=34,
+            hp=40,
+            max_hp=40,
             node=root,
             speed=2.0,
-            contact_damage=6,
+            contact_damage=7,
             visual_node=visual,
             body_node=body,
             head_node=head,
@@ -4569,11 +6753,11 @@ class SwordfishGame(ShowBase):
         return SceneEnemy(
             name="Moss Snapper",
             kind="snapper",
-            hp=28,
-            max_hp=28,
+            hp=34,
+            max_hp=34,
             node=root,
             speed=1.35,
-            contact_damage=4,
+            contact_damage=5,
             visual_node=visual,
             body_node=shell,
             head_node=head,
@@ -4602,11 +6786,11 @@ class SwordfishGame(ShowBase):
         return SceneEnemy(
             name="Lantern Wisp",
             kind="wisp",
-            hp=16,
-            max_hp=16,
+            hp=20,
+            max_hp=20,
             node=root,
             speed=2.7,
-            contact_damage=4,
+            contact_damage=5,
             visual_node=visual,
             body_node=core,
             left_detail_node=ring_a,
@@ -4664,11 +6848,11 @@ class SwordfishGame(ShowBase):
         enemy = SceneEnemy(
             name="The Old King",
             kind="boss",
-            hp=120,
-            max_hp=120,
+            hp=135,
+            max_hp=135,
             node=root,
             speed=1.8,
-            contact_damage=8,
+            contact_damage=9,
             visual_node=visual,
             body_node=body,
             head_node=head,
@@ -4717,10 +6901,10 @@ class SwordfishGame(ShowBase):
         self._log(f"{count} lantern wisps flicker between the trees.")
 
     def _spawn_field_mobs(self):
-        self.spawn_birds(3)
-        self.spawn_boars(2)
-        self.spawn_snappers(2)
-        self.spawn_wisps(2)
+        self.spawn_birds(5)
+        self.spawn_boars(4)
+        self.spawn_snappers(3)
+        self.spawn_wisps(3)
 
     def _enemies_in_attack_range(self) -> List[SceneEnemy]:
         player_pos = self.player.getPos()
@@ -4745,10 +6929,8 @@ class SwordfishGame(ShowBase):
 
         nearby.sort(key=lambda item: item[0])
         enemies = [enemy for _distance, enemy in nearby]
-        if is_ranged and self.current_weapon.weapon_type in {"bow", "crossbow"}:
+        if is_ranged:
             return enemies[:1]
-        if is_ranged and self.current_weapon.weapon_type == "staff":
-            return enemies[:3]
         return enemies
 
     def _nearest_enemy_in_range(self) -> Optional[SceneEnemy]:
@@ -4760,8 +6942,8 @@ class SwordfishGame(ShowBase):
         armor_name = "None"
         if self.player_armor_tier >= 0:
             armor_name = armor_tier_for_index(self.player_armor_tier).name
+        self._update_resource_bars()
         self.status_text.setText(
-            f"Health {self.player_hp}/{self.player_max_hp}\n"
             f"Gold {self.gold}\n"
             f"Rod {rod.name}\n"
             f"Armor {armor_name}\n"
@@ -4771,19 +6953,26 @@ class SwordfishGame(ShowBase):
         if self.current_weapon is None:
             weapon_lines = "Weapon: none\nTraits: none discovered"
         else:
+            ability_ready = (
+                "Q ready"
+                if self.weapon_ability_cooldown <= 0.0
+                else f"Q {self.weapon_ability_cooldown:.1f}s"
+            )
             weapon_lines = (
                 f"Weapon: {self.current_weapon.name}\n"
                 f"Type: {self.current_weapon.weapon_type}  "
                 f"Rarity: {self.current_weapon.rarity}  "
                 f"Damage: {self.current_weapon.base_damage}\n"
                 f"Ability: {ability_summary(self.current_weapon)}\n"
+                f"Active: {ability_ready}\n"
                 f"Traits: {trait_summary(self.current_weapon)}"
             )
         self.weapon_text.setText(weapon_lines)
 
-        distance_to_lake = (self.player.getPos() - self.fishing_spot).length()
+        spot_name, _spot_pos, distance_to_water = self._nearest_fishing_spot()
         distance_to_shop = self._distance_to_shop()
         distance_to_forge = self._distance_to_forge()
+        distance_to_raft = self._distance_to_nearest_raft()
         nearby_chest = self._nearest_chest()
         if self.fishing_state == "casting":
             prompt = "Casting..."
@@ -4805,12 +6994,22 @@ class SwordfishGame(ShowBase):
             prompt = self._shop_prompt()
         elif distance_to_forge <= FORGE_RANGE:
             prompt = self._forge_prompt()
-        elif distance_to_lake <= FISHING_RANGE:
-            prompt = "Press E to cast into the lake."
+        elif distance_to_raft <= SHOP_RANGE:
+            if (self.player.getPos() - LEVEL2_RAFT_SPOT).length() <= SHOP_RANGE:
+                prompt = "Press E to raft back to the old lake."
+            else:
+                prompt = "Press E to raft to the level 2 zone."
+        elif distance_to_water <= FISHING_RANGE:
+            if spot_name == "cave pool":
+                prompt = "Press E to cast into the glowing cave pool."
+            elif spot_name == "level 2 lake":
+                prompt = "Press E to cast into the level 2 lake."
+            else:
+                prompt = "Press E to cast into the lake."
         elif self.enemies:
-            prompt = "Follow the southeast path for guarded treasure."
+            prompt = "Explore the cave, frost marsh, sunken meadow, or take the raft to level 2."
         else:
-            prompt = "The arena is quiet. Treasure waits southeast."
+            prompt = "The arena is quiet. The raft and distant chests wait."
         self.prompt_text.setText(prompt)
 
         if self.catch_banner_timer > 0.0:
@@ -4823,6 +7022,33 @@ class SwordfishGame(ShowBase):
         self._update_forge_ui()
         self.log_text.setText("\n".join(self.log_lines[-7:]))
 
+    def _update_resource_bars(self):
+        if self.health_bar_fill is None:
+            return
+
+        health_ratio = 0.0
+        if self.player_max_hp > 0:
+            health_ratio = max(0.0, min(1.0, self.player_hp / self.player_max_hp))
+
+        left = 0.345
+        right = left + (0.89 * health_ratio)
+        if health_ratio <= 0.0:
+            right = left
+        self.health_bar_fill["frameSize"] = (left, right, 0.89, 0.935)
+        self.health_bar_fill["frameColor"] = (0.9, 0.16, 0.13, 0.92)
+
+        if self.stamina_bar_fill is None:
+            return
+        stamina_ratio = 0.0
+        if self.player_max_stamina > 0:
+            stamina_ratio = max(0.0, min(1.0, self.player_stamina / self.player_max_stamina))
+        stamina_left = 0.345
+        stamina_right = stamina_left + (0.89 * stamina_ratio)
+        if stamina_ratio <= 0.0:
+            stamina_right = stamina_left
+        self.stamina_bar_fill["frameSize"] = (stamina_left, stamina_right, 0.8, 0.845)
+        self.stamina_bar_fill["frameColor"] = (0.22, 0.82, 0.28, 0.92)
+
     def _shop_prompt(self) -> str:
         if self.shop_open:
             return "Press 1-4 to choose a rod, or E to close."
@@ -4830,7 +7056,7 @@ class SwordfishGame(ShowBase):
 
     def _forge_prompt(self) -> str:
         if self.forge_open:
-            return "Press 1-4 to choose armor, or E to close."
+            return "Press 1-7 to choose armor, or E to close."
         return "Press E to open the forge."
 
     def _update_shop_ui(self):

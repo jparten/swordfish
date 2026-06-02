@@ -11,9 +11,14 @@ from swordfish.combat import EnemyState, gold_reward_for_enemy, resolve_attack
 from swordfish.weapons import (
     ENCHANTMENT_BY_KEY,
     FISHING_RODS,
+    NAME_NOUNS,
+    NAME_NOUN_WEIGHTS,
+    RANGED_WEAPON_TYPES,
     WEAPON_TYPE_BY_NOUN,
     Weapon,
     ability_summary,
+    ARMOR_TIERS,
+    armor_tier_for_index,
     discover_traits,
     fishing_rod_for_tier,
     generate_weapon,
@@ -64,6 +69,22 @@ class WeaponGenerationTests(unittest.TestCase):
             self.assertTrue(is_ranged_weapon(weapon))
             self.assertIsNotNone(weapon_ability(weapon))
 
+    def test_ranged_weapon_forms_are_weighted_rare(self):
+        noun_weights = dict(zip(NAME_NOUNS, NAME_NOUN_WEIGHTS))
+        melee_weights = [
+            weight
+            for noun, weight in noun_weights.items()
+            if WEAPON_TYPE_BY_NOUN[noun] not in RANGED_WEAPON_TYPES
+        ]
+        ranged_weights = [
+            weight
+            for noun, weight in noun_weights.items()
+            if WEAPON_TYPE_BY_NOUN[noun] in RANGED_WEAPON_TYPES
+        ]
+
+        self.assertTrue(ranged_weights)
+        self.assertLess(max(ranged_weights), min(melee_weights))
+
     def test_better_rods_shift_rarity_toward_relics(self):
         starter_weights = dict(rarity_weights_for_rod(0))
         copper_weights = dict(rarity_weights_for_rod(1))
@@ -82,6 +103,19 @@ class WeaponGenerationTests(unittest.TestCase):
         self.assertEqual(fishing_rod_for_tier(999), FISHING_RODS[-1])
         self.assertEqual(next_fishing_rod(0), FISHING_RODS[1])
         self.assertIsNone(next_fishing_rod(len(FISHING_RODS) - 1))
+
+    def test_armor_tiers_have_longer_upgrade_path(self):
+        self.assertGreaterEqual(len(ARMOR_TIERS), 7)
+        self.assertEqual(armor_tier_for_index(-5), ARMOR_TIERS[0])
+        self.assertEqual(armor_tier_for_index(999), ARMOR_TIERS[-1])
+        self.assertEqual(
+            [armor.cost for armor in ARMOR_TIERS],
+            sorted(armor.cost for armor in ARMOR_TIERS),
+        )
+        self.assertEqual(
+            [armor.armor_value for armor in ARMOR_TIERS],
+            sorted(armor.armor_value for armor in ARMOR_TIERS),
+        )
 
     def test_trait_summary_hides_undiscovered_traits(self):
         weapon = Weapon(

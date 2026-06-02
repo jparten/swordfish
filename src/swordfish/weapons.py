@@ -186,7 +186,10 @@ ARMOR_TIERS: Tuple[ArmorTier, ...] = (
     ArmorTier(name="Leather Vest", cost=30, armor_value=1),
     ArmorTier(name="Chain Shirt", cost=75, armor_value=2),
     ArmorTier(name="Iron Plate", cost=150, armor_value=4),
-    ArmorTier(name="Dragon Scale", cost=275, armor_value=6),
+    ArmorTier(name="Knight Plate", cost=240, armor_value=6),
+    ArmorTier(name="Dragon Scale", cost=375, armor_value=8),
+    ArmorTier(name="Starbone Mail", cost=550, armor_value=10),
+    ArmorTier(name="Ancient Lakeguard", cost=750, armor_value=12),
 )
 
 
@@ -248,6 +251,20 @@ NAME_NOUNS = (
     "Crossbow",
 )
 
+NAME_NOUN_WEIGHTS = (
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    1,
+    1,
+    1,
+)
+
 WEAPON_TYPE_BY_NOUN = {
     "Saber": "saber",
     "Cleaver": "cleaver",
@@ -274,7 +291,7 @@ def generate_weapon(rng: Optional[random.Random] = None, rod_tier: int = 0) -> W
     rng = rng or random.Random()
     rarity, enchantment_count, damage_range = _roll_rarity(rng, rod_tier)
     enchantments = tuple(rng.sample(ENCHANTMENTS, enchantment_count))
-    noun = rng.choice(NAME_NOUNS)
+    noun = rng.choices(NAME_NOUNS, weights=NAME_NOUN_WEIGHTS, k=1)[0]
     name = f"{rng.choice(NAME_PREFIXES)} {noun}"
 
     return Weapon(
